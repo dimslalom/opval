@@ -1,6 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dispatchFeed } from '../apps/call/worker/index.js';
+import worker, { dispatchFeed } from '../apps/call/worker/index.js';
+import { d1 } from './helpers/d1Shim.js';
+
+test('ingest is routed and bearer-guarded on the OpVAL Worker', async () => {
+  const env = { DB: d1(), FEED_INGEST_TOKEN: 'secret' };
+  const post = (headers) => worker.fetch(new Request('https://x.test/internal/ingest', {
+    method: 'POST', headers, body: JSON.stringify({ schemaVersion: 1, kind: 'heartbeat', runId: 'r1' }),
+  }), env);
+  assert.equal((await post({})).status, 401);
+  assert.equal((await post({ Authorization: 'Bearer secret' })).status, 200);
+  assert.equal((await worker.fetch(new Request('https://x.test/internal/other', { method: 'POST' }), { ...env, ASSETS: { fetch: async () => new Response('asset') } })).status, 200);
+});
 
 test('cron starts the feed workflow on main, and does nothing without a token', async () => {
   const calls = [];

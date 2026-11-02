@@ -6,9 +6,9 @@ import { settleWeeklyBingo } from './weeklyBingo.js';
 import { calibratePaid } from './calibration.js';
 import { settleTransferBets } from './transferBets.js';
 
-// OpVAL's Worker: a read-only window onto the shared feed database, plus accounts
-// and cloud saves (accounts.js). Ingest stays on the old site's Worker, so
-// no secrets live here. Static files bypass this Worker entirely (see wrangler.jsonc).
+// OpVAL's Worker: the shared feed database (read-only API plus bearer-guarded ingest, which
+// needs a FEED_INGEST_TOKEN secret), accounts and cloud saves (accounts.js). Static files
+// bypass this Worker entirely (see wrangler.jsonc).
 
 const CSP = [
   "default-src 'self'",
@@ -38,7 +38,7 @@ function secure(response) {
 // and often skips hours. Cloudflare cron fires on time, so this starts that workflow every 15
 // minutes. Needs a GITHUB_DISPATCH_TOKEN secret (fine-grained, Actions: write on this repo);
 // without it the cron does nothing. The workflow's concurrency group queues overlapping runs.
-const FEED_WORKFLOW = 'https://api.github.com/repos/dimslalom/2605-Valorant-Fantasy-League/actions/workflows/feed.yml/dispatches';
+const FEED_WORKFLOW = 'https://api.github.com/repos/dimslalom/opval/actions/workflows/feed.yml/dispatches';
 export async function dispatchFeed(env, fetchImpl = fetch) {
   if (!env.GITHUB_DISPATCH_TOKEN) return 'skipped: no token';
   const res = await fetchImpl(FEED_WORKFLOW, {
@@ -66,9 +66,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Read-only feed. handleFeed also knows the ingest path, so only the public prefix is routed here.
     if (url.pathname.startsWith('/api/roster/')) return secure(await getRoster(env.DB, url.pathname, url));
-    if (url.pathname.startsWith('/api/feed/')) return secure(await handleFeed(request, env, url));
+    if (url.pathname.startsWith('/api/feed/') || url.pathname === '/internal/ingest') return secure(await handleFeed(request, env, url));
     if (url.pathname.startsWith('/api/')) {
       const res = await handleAccounts(request, env, url);
       return secure(res ?? Response.json({ error: 'not found' }, { status: 404 }));

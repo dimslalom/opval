@@ -2,9 +2,8 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-// The call game is its own app: own entry, own build, own Worker (see wrangler.jsonc).
-// It shares the engine, the player cards and the card art with the old site by
-// importing from ../../src and serving ../../public, so nothing is duplicated.
+// The app's entry, build and Worker (see wrangler.jsonc). Card code comes from the shared/
+// submodule, and ../../public/assets is a symlink to its art.
 const here = dir => fileURLToPath(new URL(dir, import.meta.url));
 
 export default defineConfig({
@@ -16,7 +15,7 @@ export default defineConfig({
     fs: { allow: [here('../..')] },
     proxy: {
       // In dev, read the live feed (GET only) so the app has real data.
-      '/api/feed': { target: 'https://vctfantasy.dimas.works', changeOrigin: true },
+      '/api/feed': { target: 'https://opval.dimas.works', changeOrigin: true },
       // Roster data is public and read-only too: read the live sources.
       '/api/roster': { target: 'https://opval.dimas.works', changeOrigin: true },
       // Accounts and saves run on a local Worker with a local database: `npm run call:api`.
