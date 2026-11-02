@@ -20,6 +20,10 @@ export function validateEnvelope(body) {
   return { ok: true };
 }
 
+// vlr.gg leaves these cells blank on some matches (China Kickoff 2026 has whole maps with only ACS
+// and K/D/A). Missing is not wrong: the map result stands, the player rows just aren't complete.
+const unpublished = p => ['r2', 'adr', 'kast', 'hs', 'fk', 'fd'].some(k => p[k] === null);
+
 function playerProblem(p, rounds) {
   if (!int(p.vlrId, 1, 1e9)) return 'vlrId';
   if (!(p.side === 1 || p.side === 2)) return 'side';
@@ -44,10 +48,12 @@ export function judgeMap(map) {
   if (players.length === 0) return { verdict: 'empty' };
 
   const rounds = s1 + s2;
-  for (const p of players) {
+  const complete = players.filter(p => !unpublished(p));
+  for (const p of complete) {
     const problem = playerProblem(p, rounds);
     if (problem) return { verdict: 'bad', reason: `player ${p.vlrId ?? '?'}: ${problem}` };
   }
+  if (complete.length < players.length) return { verdict: 'partial', reason: 'stats not published' };
   const ids = new Set(players.map(p => p.vlrId));
   const perSide = [1, 2].map(s => players.filter(p => p.side === s).length);
   if (players.length !== 10 || ids.size !== 10 || perSide[0] !== 5 || perSide[1] !== 5) {

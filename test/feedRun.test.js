@@ -127,7 +127,55 @@ test('refetchFinal re-fetches finished matches that are already stored', () => {
   const listing = [{ match_id: '1', stats_ready: true }, { match_id: '2', stats_ready: true }];
   const known = new Map([[1, { statsRank: 3 }], [2, { statsRank: 3 }]]);
   assert.equal(pickCandidates(listing, known).length, 0);
-  assert.equal(pickCandidates(listing, known, 6, { refetchFinal: true }).length, 2);
+  assert.equal(pickCandidates(listing, known, { refetchFinal: true }).length, 2);
+});
+
+test('incomplete finals are re-checked after new matches, and only during the grace period', () => {
+  const now = 1_800_000_000;
+  const listing = [1, 2, 3, 4].map(id => ({ match_id: String(id), stats_ready: true }));
+  const known = new Map([
+    [1, { status: 'final', statsRank: 2, startsAt: now - 8 * 86400 }], // incomplete and old: given up on
+    [2, { status: 'final', statsRank: 2, startsAt: now - 86400 }],     // incomplete and recent: re-checked last
+    [3, { status: 'upcoming', statsRank: 0, startsAt: now - 8 * 86400 }], // never had a final: always fetched
+  ]);
+  assert.deepEqual(pickCandidates(listing, known, { now }).map(r => r.match_id), ['3', '4', '2']);
+});
+
+test('rejected matches do not use up the limit, so later matches still get fetched', async () => {
+  const w = world();
+  const listing = [{ match_id: '1', stats_ready: true }, { match_id: '753462', stats_ready: true }];
+  const fetchImpl = async (input, init) => {
+    const url = new URL(input);
+    if (url.pathname === '/v2/events/matches') return Response.json({ data: { segments: listing } });
+    if (url.pathname === '/v2/match/details' && url.searchParams.get('match_id') === '1') {
+      const bad = structuredClone(golden);
+      bad.data.segments[0].match_id = '1';
+      bad.data.segments[0].maps[0].players.team1[0].kills = '999';
+      return Response.json(bad);
+    }
+    return w.fetchImpl(input, init);
+  };
+  const summary = await runPoll({ clients: clientsOf(fetchImpl), events: [{ id: 2766 }], runId: 't4', limit: 1, log: () => {} });
+  assert.deepEqual([summary.fetched, summary.rejected, summary.accepted], [2, 1, 1]);
+});
+
+test('a final whose maps vlr left blank is stored as partial with no player rows, not rejected', async () => {
+  const w = world();
+  const blank = structuredClone(golden);
+  for (const r of [...blank.data.segments[0].maps[0].players.team1, ...blank.data.segments[0].maps[0].players.team2]) {
+    Object.assign(r, { rating: '', adr: '', kast: '', hs_pct: '', fk: '', fd: '' });
+  }
+  const fetchImpl = async (input, init) => {
+    const url = new URL(input);
+    if (url.pathname === '/v2/match/details') return Response.json(blank);
+    return w.fetchImpl(input, init);
+  };
+  const summary = await runPoll({ clients: clientsOf(fetchImpl), events: [{ id: 2766 }], runId: 't5', log: () => {} });
+  assert.deepEqual([summary.partial, summary.rejected], [1, 0]);
+  const match = await (await w.fetchImpl('https://feed.test/api/feed/matches/753462')).json();
+  assert.equal(match.statsRank, 2);
+  assert.equal(match.maps.length, 2);
+  assert.deepEqual(match.maps.map(m => m.players.length), [0, 10]);
 });
 
 test('withRetry rides out transient network errors and 5xx, then gives up', async () => {

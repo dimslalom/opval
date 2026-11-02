@@ -30,6 +30,16 @@ test('nine players is partial; an out-of-range stat rejects the match', () => {
   assert.equal(judgeMap(map([13, 11], roster().map((p, i) => (i === 0 ? { ...p, k: 200 } : p)))).verdict, 'bad');
 });
 
+test('stats vlr left blank make a map partial; blank K/D/A or a bad neighbour still rejects', () => {
+  const blanked = field => roster().map(p => ({ ...p, [field]: null }));
+  for (const field of ['r2', 'adr', 'kast', 'hs', 'fk', 'fd']) assert.equal(judgeMap(map([13, 7], blanked(field))).verdict, 'partial');
+  assert.equal(judgeMap(map([13, 7], blanked('k'))).verdict, 'bad');
+  assert.equal(judgeMap(map([13, 7], blanked('acs'))).verdict, 'bad');
+  const oneBad = blanked('adr').map((p, i) => (i === 0 ? { ...p, adr: 150, r2: 9 } : p));
+  assert.equal(judgeMap(map([13, 7], oneBad)).verdict, 'bad');
+  assert.equal(judgeMatch(match([map([13, 7], blanked('adr')), map([13, 9])])).statsRank, 2);
+});
+
 test('unfinished map scores are rejected', () => {
   assert.equal(judgeMap(map([12, 10])).verdict, 'bad');
   assert.equal(judgeMap(map([13, 12])).verdict, 'bad');

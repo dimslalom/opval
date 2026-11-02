@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url';
 import { normalizeMatch } from './normalize.js';
 
 const MAX_PER_RUN = 6;
+const STATS_GRACE_S = 7 * 86400; // vlr fills in late stats within days; after this a final's gaps are treated as permanent.
 const roundIdOf = (eventId, startsAt) =>
   `${eventId}:${startsAt ? new Date(startsAt * 1000).toISOString().slice(0, 10) : 'tbd'}`;
 
@@ -58,15 +59,20 @@ export function makeClients({ vlrBase, feedBase, token, fetchImpl: rawFetch = fe
 
 // Which matches need (re)fetching: finished with stats published, and either
 // unknown to the feed or stored with worse stats than the listing now offers.
+// A stored final with incomplete stats is re-checked for STATS_GRACE_S after it started, then left alone.
+// Matches the feed has no final for come first, so re-checks never hold up new results.
 // `refetchFinal` re-fetches finished ones too (a one-off repair after a normalizer fix).
-export function pickCandidates(listing, known, limit = MAX_PER_RUN, { refetchFinal = false } = {}) {
+export function pickCandidates(listing, known, { refetchFinal = false, now = Date.now() / 1000 } = {}) {
+  const stored = row => known.get(Number(row.match_id));
+  const isFinal = row => stored(row)?.status === 'final';
   return listing
     .filter(row => row.match_id && row.stats_ready)
     .filter(row => {
-      const stored = known.get(Number(row.match_id));
-      return refetchFinal || !stored || stored.statsRank < 3;
+      if (refetchFinal || !stored(row)) return true;
+      const { statsRank, startsAt } = stored(row);
+      return statsRank < 3 && !(isFinal(row) && startsAt < now - STATS_GRACE_S);
     })
-    .slice(0, limit);
+    .sort((a, b) => isFinal(a) - isFinal(b));
 }
 
 // Live matches and every upcoming match with both teams known, refreshed every run (so a
@@ -87,13 +93,17 @@ export function pickWindow(listing, known, { limit = 10 } = {}) {
 }
 
 export async function runPoll({ clients, events, runId, limit = MAX_PER_RUN, refetchFinal = false, log = console.log }) {
-  const summary = { fetched: 0, accepted: 0, upcoming: 0, pending: 0, rejected: 0, markupChanged: false };
+  const summary = { fetched: 0, accepted: 0, partial: 0, upcoming: 0, pending: 0, rejected: 0, markupChanged: false };
   for (const event of events) {
     const listing = (await clients.vlr(`/v2/events/matches?event_id=${event.id}`)).segments ?? [];
     const known = await clients.feed.known(event.id);
-    const candidates = pickCandidates(listing, known, limit, { refetchFinal });
+    const candidates = pickCandidates(listing, known, { refetchFinal });
     log(`event ${event.id}: ${listing.length} listed, ${candidates.length} to fetch`);
+    let spent = 0;
     for (const row of candidates) {
+      // A rejected match is never stored, so it stays first in line every run: it must not use up the limit.
+      // ponytail: rejects are re-fetched every run; store them with a retry-after if that ever gets slow.
+      if (spent >= limit) break;
       const detail = (await clients.vlr(`/v2/match/details?match_id=${row.match_id}`)).segments[0];
       const match = normalizeMatch(detail, {});
       match.roundId = roundIdOf(event.id, match.startsAt);
@@ -102,7 +112,9 @@ export async function runPoll({ clients, events, runId, limit = MAX_PER_RUN, ref
         schemaVersion: 1, kind: 'matches', runId, source: { name: 'vlr.gg' }, matches: [match],
       });
       summary.accepted += result.accepted.length;
+      summary.partial += result.partial.length;
       summary.rejected += result.rejected.length;
+      if (result.rejected.length === 0) spent += 1;
       // Listing says stats are out but the page had no players: vlr changed its markup.
       if (match.status === 'final' && match.maps.every(m => m.players.length === 0)) {
         summary.markupChanged = true;
