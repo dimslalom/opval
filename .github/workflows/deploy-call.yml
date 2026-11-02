@@ -1,7 +1,6 @@
 name: Deploy OpVAL
 
-# The call game is its own site (apps/call, Worker "opval"). It deploys independently
-# of the old Gauntlet site, only when something it uses changes.
+# apps/call, Worker "opval". Deploys only when something it uses changes.
 
 on:
   push:
@@ -10,6 +9,8 @@ on:
       - 'apps/call/**'
       - 'src/**'
       - 'public/**'
+      - 'shared'
+      - '.gitmodules'
       - 'worker/feed/**'
       - 'migrations/**'
       - 'package.json'
@@ -31,6 +32,8 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -39,10 +42,8 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run call:build
-      # Apply migrations here so this Worker never goes live before its tables exist. The Gauntlet
-      # deploy applies them too, in parallel; if both apply the same one, the loser fails and the
-      # retry finds it applied and does nothing.
-      - run: for i in 1 2 3; do npx wrangler d1 migrations apply vfl-daily-scores --remote --config apps/call/wrangler.jsonc && break; [ "$i" = 3 ] && exit 1; sleep 20; done
+      # Apply migrations here so this Worker never goes live before its tables exist.
+      - run: npx wrangler d1 migrations apply vfl-daily-scores --remote --config apps/call/wrangler.jsonc
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

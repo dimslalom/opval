@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IconArrowRight, IconChevronLeft, IconChevronRight, IconClock, IconExternalLink, IconLock, IconPlus, IconSearch } from '@tabler/icons-react';
-import Split from '../../../../src/components/Split';
+import Split from '../../../../shared/src/components/Split';
 import Sheet from '../components/Sheet';
 import { useGame } from '../lib/gameContext';
 import { logoFor } from '../lib/orgs';

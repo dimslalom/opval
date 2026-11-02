@@ -2,19 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "vite-dev",
+      "name": "call-api",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
-        "dev"
+        "call:api"
       ],
-      "port": 5173,
-      "autoPort": true
-    },
-    {
-      "name": "call-api",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "call:api"],
       "port": 8787
     },
     {

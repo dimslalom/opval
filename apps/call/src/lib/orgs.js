@@ -1,4 +1,4 @@
-import cards from '../../../../src/data/cards.json';
+import cards from '../../../../shared/src/data/cards.json';
 import teamColors from '../data/teamColors.json';
 import teams from '../../../../src/data/teams.json';
 

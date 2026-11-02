@@ -1,6 +1,6 @@
-import cards from '../../../../src/data/cards.json';
+import cards from '../../../../shared/src/data/cards.json';
 import { ECONOMY, TRACKED_MAX } from '../../../../src/engine/collect/rules';
-import { assetPath, thumbnailSrc } from '../../../../src/lib/utils';
+import { assetPath, thumbnailSrc } from '../../../../shared/src/lib/utils';
 import { logoFor } from '../lib/orgs';
 
 const virtyy = cards.find(card => card.id === 'loud-virtyy-gold-001');

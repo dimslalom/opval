@@ -1,4 +1,4 @@
-import cards from '../../../../src/data/cards.json';
+import cards from '../../../../shared/src/data/cards.json';
 import { buyPack, createCollection, setCall, swapTracked } from '../../../../src/engine/collect/game';
 import { weekBounds, weekKey, weeklyCatalog } from './weeklyBingo';
 

@@ -1,4 +1,4 @@
-import cardArt from '../../../src/data/cards.json' with { type: 'json' };
+import cardArt from '../../../shared/src/data/cards.json' with { type: 'json' };
 import { buyPack, resolveSeries, setCall, swapTracked } from '../../../src/engine/collect/game.js';
 import { makeCardLookup } from '../../../src/engine/shared/cardLookup.js';
 import { loadMatch } from '../../../worker/feed/routes.js';

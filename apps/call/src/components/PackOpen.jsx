@@ -3,8 +3,8 @@ import { m } from 'motion/react';
 import CardThumb from './CardThumb';
 import CardPeek3D from './CardPeek3D';
 import { peekDrag } from '../lib/cardCurl';
-import PackTear from '../../../../src/components/PackTear';
-import { playUiSound } from '../../../../src/lib/gameAudio';
+import PackTear from '../../../../shared/src/components/PackTear';
+import { playUiSound } from '../../../../shared/src/lib/gameAudio';
 
 // The pack-open moment, built on what makes Pokemon TCG Pocket and Balatro packs feel good:
 //  1. You open it yourself (drag the foil), so the pull feels earned, not delivered.

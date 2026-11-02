@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[3]
-CARDS = ROOT / "src/data/cards.json"
+CARDS = ROOT / "shared/src/data/cards.json"
 OUT = ROOT / "apps/call/src/data/teamColors.json"
 
 # These marks have important secondary colors or a dominant dark/white field.

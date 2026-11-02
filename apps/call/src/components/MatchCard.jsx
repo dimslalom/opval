@@ -1,7 +1,7 @@
 import { Children, useEffect, useRef, useState } from 'react';
 import { fetchMatch } from '../lib/feed';
 import { useGame } from '../lib/gameContext';
-import { assetPath, thumbnailSrc } from '../../../../src/lib/utils';
+import { assetPath, thumbnailSrc } from '../../../../shared/src/lib/utils';
 import { colorsFor, logoFor } from '../lib/orgs';
 import CallPanel from './CallPanel';
 import Fan from './Fan';

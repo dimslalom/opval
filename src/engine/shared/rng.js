@@ -1,4 +1,4 @@
-import { hashSeed, mulberry32 } from '../perfectRun.js';
+import { hashSeed, mulberry32 } from '../../../shared/src/engine/perfectRun.js';
 
 // One bit-identical RNG app-wide, but no stream state to store: every decision
 // seeds its own generator from (seed, day, manager, phase), so saves are

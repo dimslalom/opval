@@ -4,7 +4,7 @@ import Sheet from './Sheet';
 import { Crest, Face } from './Face';
 import Receipt from './Receipt';
 import { colorsFor, tagForName } from '../lib/orgs';
-import { assetPath } from '../../../../src/lib/utils';
+import { assetPath } from '../../../../shared/src/lib/utils';
 import { searchCards, suggestCards } from '../lib/rosterCards';
 import { glassVars } from '../lib/ink';
 import { identityOf, multiplierOf, payoutOf } from '../lib/transferBets';

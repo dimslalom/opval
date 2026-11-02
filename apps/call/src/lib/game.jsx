@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import cards from '../../../../src/data/cards.json';
+import cards from '../../../../shared/src/data/cards.json';
 import { buyPack, callRecord, createCollection, rescoreCalls, resolveSeries, setCall, settleCalls, swapFee, swapTracked, totalScore } from '../../../../src/engine/collect/game';
 import { CALL_RULES } from '../../../../src/engine/collect/rules';
 import { makeCardLookup } from '../../../../src/engine/shared/cardLookup';

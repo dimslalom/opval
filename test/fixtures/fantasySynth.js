@@ -1,8 +1,8 @@
 // Synthetic league context for balance tests until real replay data exists.
 // Players are the real cards of the Champions 2026 teams; per-map points are
 // drawn around the card prior with the spread seen in the first real matches.
-import cards from '../../src/data/cards.json' with { type: 'json' };
-import { mulberry32 } from '../../src/engine/perfectRun.js';
+import cards from '../../shared/src/data/cards.json' with { type: 'json' };
+import { mulberry32 } from '../../shared/src/engine/perfectRun.js';
 import { buildValueTable } from '../../src/engine/fantasy/values.js';
 
 const TEAMS = new Set(['100T', 'LOUD', 'NRG', 'G2', 'TL', 'FUT', 'VIT', 'GE', 'NS', 'PRX', 'T1', 'TYL', 'JDG', 'EDG', 'XLG']);

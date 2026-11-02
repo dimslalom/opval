@@ -1,4 +1,4 @@
-import cards from '../../../../src/data/cards.json';
+import cards from '../../../../shared/src/data/cards.json';
 import { makeCardLookup } from '../../../../src/engine/shared/cardLookup';
 import { tagForName } from './orgs';
 

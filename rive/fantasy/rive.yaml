@@ -1,5 +1,0 @@
-name: fantasy
-main: SlotPlate
-logs:
-  file: build/rive.log
-  problems: build/problems.log

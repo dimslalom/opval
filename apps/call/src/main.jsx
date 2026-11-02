@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import 'flag-icons/css/flag-icons.min.css';
-import '../../../src/index.css';
+import '../../../shared/src/index.css';
 import './styles/app.css';
 import App from './App.jsx';
 

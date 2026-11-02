@@ -1,4 +1,4 @@
-import PlayerCard from '../../../../src/components/PlayerCard';
+import PlayerCard from '../../../../shared/src/components/PlayerCard';
 
 // The designed FIFA-style card at a given scale. `kit` re-dresses the player in another
 // team's jersey (used for the club you pick, later).

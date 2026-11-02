@@ -14,7 +14,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 
 // PlayerCard (shared with the old site) animates with the `m` namespace under a
 // strict LazyMotion, so the same providers wrap this app.
-const loadFeatures = () => import('../../../src/lib/motionFeatures').then(mod => mod.default);
+const loadFeatures = () => import('../../../shared/src/lib/motionFeatures').then(mod => mod.default);
 
 export default function App() {
   return (

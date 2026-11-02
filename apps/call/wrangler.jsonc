@@ -19,7 +19,7 @@
     "not_found_handling": "none"
   },
 
-  // Same database as the old site: the feed job writes matches there, this app reads them.
+  // Also bound by VFL for daily_scores. This repo owns the schema and migrations.
   "d1_databases": [
     {
       "binding": "DB",

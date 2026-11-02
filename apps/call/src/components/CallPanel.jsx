@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { CALL } from '../../../../src/engine/collect/rules';
-import { STAT_KEYS, STAT_LABELS_FULL } from '../../../../src/data/statFields';
-import { assetPath, thumbnailSrc } from '../../../../src/lib/utils';
-import Split from '../../../../src/components/Split';
+import { STAT_KEYS, STAT_LABELS_FULL } from '../../../../shared/src/data/statFields';
+import { assetPath, thumbnailSrc } from '../../../../shared/src/lib/utils';
+import Split from '../../../../shared/src/components/Split';
 import { glassVars } from '../lib/ink';
 import { colorsFor, logoFor } from '../lib/orgs';
 
