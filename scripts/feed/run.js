@@ -12,7 +12,25 @@ const MAX_PER_RUN = 6;
 const roundIdOf = (eventId, startsAt) =>
   `${eventId}:${startsAt ? new Date(startsAt * 1000).toISOString().slice(0, 10) : 'tbd'}`;
 
-export function makeClients({ vlrBase, feedBase, token, fetchImpl = fetch }) {
+// The runner talks to the Worker over the public internet and now and then gets ECONNRESET / ETIMEDOUT or a 5xx.
+// One blip used to fail the whole run (and email), so retry network errors and 429/5xx a few times first.
+// Ingest is idempotent per match, so re-sending a POST is safe.
+export function withRetry(fetchImpl, { attempts = 4, delayMs = 1000, sleep = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
+  return async (input, init) => {
+    for (let i = 1; ; i++) {
+      try {
+        const res = await fetchImpl(input, init);
+        if ((res.status < 500 && res.status !== 429) || i >= attempts) return res;
+      } catch (error) {
+        if (i >= attempts) throw error;
+      }
+      await sleep(delayMs * 2 ** (i - 1));
+    }
+  };
+}
+
+export function makeClients({ vlrBase, feedBase, token, fetchImpl: rawFetch = fetch }) {
+  const fetchImpl = withRetry(rawFetch);
   const vlr = async path => {
     const res = await fetchImpl(`${vlrBase}${path}`);
     if (!res.ok) throw new Error(`vlrggapi ${path} -> ${res.status}`);

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { d1 } from './helpers/d1Shim.js';
 import { handleFeed } from '../worker/feed/routes.js';
-import { pickCandidates, runPoll } from '../scripts/feed/run.js';
+import { pickCandidates, runPoll, withRetry } from '../scripts/feed/run.js';
 
 const golden = JSON.parse(readFileSync(new URL('./fixtures/feed/match-753462.v2.json', import.meta.url), 'utf8'));
 
@@ -128,4 +128,26 @@ test('refetchFinal re-fetches finished matches that are already stored', () => {
   const known = new Map([[1, { statsRank: 3 }], [2, { statsRank: 3 }]]);
   assert.equal(pickCandidates(listing, known).length, 0);
   assert.equal(pickCandidates(listing, known, 6, { refetchFinal: true }).length, 2);
+});
+
+test('withRetry rides out transient network errors and 5xx, then gives up', async () => {
+  const sleep = async () => {};
+  let n = 0;
+  const flaky = async () => {
+    n += 1;
+    if (n === 1) throw new TypeError('fetch failed');
+    if (n === 2) return new Response('bad gateway', { status: 502 });
+    return Response.json({ ok: true });
+  };
+  const res = await withRetry(flaky, { sleep })('https://x.test');
+  assert.equal(n, 3);
+  assert.deepEqual(await res.json(), { ok: true });
+
+  let m = 0;
+  const dead = async () => { m += 1; throw new TypeError('fetch failed'); };
+  await assert.rejects(withRetry(dead, { attempts: 3, sleep })('https://x.test'), /fetch failed/);
+  assert.equal(m, 3);
+
+  const notFound = async () => new Response('no', { status: 404 });
+  assert.equal((await withRetry(notFound, { sleep })('https://x.test')).status, 404); // 4xx is not retried
 });
