@@ -51,7 +51,7 @@ jobs:
       - name: Poll and ingest
         env:
           VLR_API_BASE: http://127.0.0.1:3001
-          FEED_BASE_URL: https://vctfantasy.dimas.works
+          FEED_BASE_URL: https://opval.dimas.works
           FEED_INGEST_TOKEN: ${{ secrets.FEED_INGEST_TOKEN }}
         run: node scripts/feed/run.js --mode poll --limit "${{ inputs.limit || '6' }}" --refetch-final "${{ inputs.refetch_final || 'false' }}"
 
@@ -59,6 +59,6 @@ jobs:
         run: python -m unittest scripts/feed/test_roster.py
       - name: Poll roster sources
         env:
-          FEED_BASE_URL: https://vctfantasy.dimas.works
+          FEED_BASE_URL: https://opval.dimas.works
           FEED_INGEST_TOKEN: ${{ secrets.FEED_INGEST_TOKEN }}
         run: python scripts/feed/roster.py
