@@ -12,6 +12,9 @@ from selectolax.parser import HTMLParser
 VLR = 'https://www.vlr.gg/transfers'
 GCD = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmmWiBmMMD43m5VtZq54nKlmj0ZtythsA1qCpegwx-iRptx2HEsG0T3cQlG1r2AIiKxBWnaurJZQ9Q/pubhtml'
 GCD_SHEETS = {'AMERICAS': 1856086064, 'CN': 1474170664, 'EMEA': 0, 'PACIFIC': 1819901194}
+# Rosters shrink for real in the off-season (Americas hit 27 in Nov 2026), while a markup or
+# label change drops nearly every row. This floor only has to tell those two apart.
+GCD_MIN_ROWS = 10
 BASE = os.environ.get('FEED_BASE_URL', 'http://127.0.0.1:8787')
 TOKEN = os.environ.get('FEED_INGEST_TOKEN', 'local-dev')
 
@@ -89,7 +92,7 @@ def parse_gcd(html):
                              'league': cells[league] if league is not None and league < len(cells) else 'VCT',
                              'contractEnd': cells[end] or None})
             break
-    if len(rows) < 30:
+    if len(rows) < GCD_MIN_ROWS:
         raise ValueError(f'GCD markup changed or incomplete: only {len(rows)} rows parsed')
     return rows
 

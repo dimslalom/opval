@@ -18,6 +18,18 @@ class RosterParserTests(unittest.TestCase):
         self.assertEqual(len(rows), 30)
         self.assertEqual(rows[0]['contractEnd'], '2027 Season End')
 
+    def test_offseason_sheet_with_open_slots_is_not_a_markup_failure(self):
+        head = '<tr><td>League</td><td>Team</td><td>Official Tournament Handle</td><td>Role</td><td>End Date (Month Day, Year)</td><td>Roster Status</td></tr>'
+        players = ''.join(f'<tr><td>AMERICAS</td><td>T{i}</td><td>P{i}</td><td>PLAYER</td><td>2027</td><td>Active</td></tr>' for i in range(27))
+        slots = ''.join(f'<tr><td>AMERICAS</td><td>T{i}</td><td></td><td></td><td></td><td></td></tr>' for i in range(13))
+        self.assertEqual(len(parse_gcd(f'<table>{head}{players}{slots}</table>')), 27)
+
+    def test_nearly_empty_sheet_is_loud(self):
+        head = '<tr><td>League</td><td>Team</td><td>Official Tournament Handle</td><td>Role</td><td>End Date (Month Day, Year)</td><td>Roster Status</td></tr>'
+        body = ''.join(f'<tr><td>AMERICAS</td><td>T{i}</td><td>P{i}</td><td>PLAYER</td><td>2027</td><td>Active</td></tr>' for i in range(9))
+        with self.assertRaises(ValueError):
+            parse_gcd(f'<table>{head}{body}</table>')
+
     def test_markup_failure_is_loud(self):
         with self.assertRaises(ValueError):
             parse_gcd('<table><tr><td>Unknown</td></tr></table>')
