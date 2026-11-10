@@ -3,11 +3,15 @@ Fail closed on markup changes: no empty payload is sent as an official snapshot.
 """
 import os
 import re
+import time
 from datetime import datetime
 from urllib.parse import urljoin
 
 import httpx
-from selectolax.parser import HTMLParser
+try:
+    from selectolax.parser import HTMLParser
+except ImportError:
+    from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 VLR = 'https://www.vlr.gg/transfers'
 GCD = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmmWiBmMMD43m5VtZq54nKlmj0ZtythsA1qCpegwx-iRptx2HEsG0T3cQlG1r2AIiKxBWnaurJZQ9Q/pubhtml'
@@ -97,21 +101,41 @@ def parse_gcd(html):
     return rows
 
 
+def request_with_retry(client, method, url, attempts=3, delay=1.0, sleep=time.sleep, **kwargs):
+    for attempt in range(1, attempts + 1):
+        try:
+            response = client.request(method, url, **kwargs)
+            if (response.status_code >= 500 or response.status_code == 429) and attempt < attempts:
+                sleep(delay * (2 ** (attempt - 1)))
+                continue
+            response.raise_for_status()
+            return response
+        except httpx.RequestError:
+            if attempt >= attempts:
+                raise
+            sleep(delay * (2 ** (attempt - 1)))
+
+
 def post(kind, values, run_id):
-    with httpx.Client(timeout=90) as client:
-        response = client.post(f'{BASE}/internal/ingest', headers={'Authorization': f'Bearer {TOKEN}'},
-                               json={'schemaVersion': 1, 'kind': kind, 'runId': run_id,
-                                     'source': {'name': 'riot-gcd' if kind == 'contracts' else 'vlr.gg'}, kind: values})
-        response.raise_for_status()
+    with httpx.Client(timeout=httpx.Timeout(90.0, connect=15.0)) as client:
+        response = request_with_retry(
+            client,
+            'POST',
+            f'{BASE}/internal/ingest',
+            headers={'Authorization': f'Bearer {TOKEN}'},
+            json={'schemaVersion': 1, 'kind': kind, 'runId': run_id,
+                  'source': {'name': 'riot-gcd' if kind == 'contracts' else 'vlr.gg'}, kind: values},
+        )
         print(kind, response.json())
 
 
 def main():
     run_id = os.environ.get('GITHUB_RUN_ID', f'local-{int(datetime.now().timestamp())}')
     failures = []
-    with httpx.Client(timeout=30, follow_redirects=True, headers={'User-Agent': 'OpVAL roster monitor (public data)'}) as client:
+    with httpx.Client(timeout=httpx.Timeout(60.0, connect=15.0), follow_redirects=True, headers={'User-Agent': 'OpVAL roster monitor (public data)'}) as client:
         try:
-            transfers = parse_vlr(client.get(VLR).raise_for_status().text)
+            resp = request_with_retry(client, 'GET', VLR)
+            transfers = parse_vlr(resp.text)
             post('transfers', transfers, run_id)
         except Exception as error:
             failures.append(f'transfers: {error}')
@@ -119,7 +143,8 @@ def main():
             contracts = []
             for region, gid in GCD_SHEETS.items():
                 sheet = f'{GCD}/sheet?headers=false&gid={gid}'
-                found = parse_gcd(client.get(sheet).raise_for_status().text)
+                resp = request_with_retry(client, 'GET', sheet)
+                found = parse_gcd(resp.text)
                 if not found or any(row['league'].upper() != region for row in found):
                     raise ValueError(f'{region} sheet identity or rows changed')
                 contracts.extend(found)
