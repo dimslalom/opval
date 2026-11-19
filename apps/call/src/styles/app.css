@@ -1247,12 +1247,10 @@ button.pface { cursor: pointer; }
 @keyframes slot-in { from { opacity: 0; transform: translateY(10px) scale(.97); } }
 @media (prefers-reduced-motion: reduce) { .slot-stack > .pface { animation: none; } }
 
-/* The guess bar: same dark band as the match call's commit bar; stake on OpVAL's segmented pill. */
-.guess-bar { position: relative; z-index: 3; display: grid; grid-template-columns: minmax(0, 360px) 1fr 200px; align-items: center; gap: 20px; margin: 0 -20px; padding: 14px 20px calc(20px + var(--safe-b, 0px)); background: #151a27; }
+/* The guess bar: same dark band as the match call's commit bar; points on the left, Lock in on the right. */
+.guess-bar { position: relative; z-index: 3; display: grid; grid-template-columns: 1fr minmax(0, 360px); align-items: center; gap: 20px; margin: 0 -20px; padding: 14px 20px calc(20px + var(--safe-b, 0px)); background: #151a27; }
 .guess-bar .primary.big { max-width: none; }
 .guess-bar .error { grid-column: 1 / -1; margin: 0; }
-.guess-stake.tier-switch button { min-height: 40px; padding: 0 6px; font-variant-numeric: tabular-nums; }
-.guess-stake.tier-switch button:disabled { opacity: .35; cursor: not-allowed; }
 .guess-win { justify-self: end; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; line-height: 1; cursor: help; }
 .guess-win small { color: var(--muted); font: 700 var(--fs-micro) var(--font-mono); letter-spacing: .14em; text-transform: uppercase; }
 .guess-win b { font: 700 36px/.9 var(--font-display); font-variant-numeric: tabular-nums; }
