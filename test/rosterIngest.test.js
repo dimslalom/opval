@@ -286,3 +286,12 @@ test('an announced move shows until Riot data agrees, then stops showing', async
   await run(db, [...base().filter(r => r.player !== 'alpha'), row('delta', 'A1')], 'r2', 200);
   assert.deepEqual(await shown(), []); // Riot now lists delta and no longer lists alpha
 });
+
+test('person search finds handles by prefix first and says where each is listed now', async () => {
+  const db = d1();
+  await run(db, base(), 'r1', 100);
+  const found = (await get(db, '/api/roster/v2/people?q=ec')).people;
+  assert.deepEqual(found.map(p => p.handle), ['echo']);
+  assert.equal(found[0].now.tag, 'E1');
+  assert.deepEqual((await get(db, '/api/roster/v2/people?q=a')).people, []); // too short to search
+});

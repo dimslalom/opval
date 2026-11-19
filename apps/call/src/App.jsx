@@ -17,6 +17,7 @@ const Rosters = lazy(() => import('./pages/Rosters'));
 const Team = lazy(() => import('./pages/Team'));
 const Player = lazy(() => import('./pages/Player'));
 const Compare = lazy(() => import('./pages/Compare'));
+const Sandbox = lazy(() => import('./pages/Sandbox'));
 
 // PlayerCard (shared with the old site) animates with the `m` namespace under a
 // strict LazyMotion, so the same providers wrap this app.
@@ -54,6 +55,7 @@ export default function App() {
                   <Route path="teams/:teamId/:slug?" element={page(<Team />)} />
                   <Route path="players/:personId/:slug?" element={page(<Player />)} />
                   <Route path="compare" element={page(<Compare />)} />
+                  <Route path="sandbox" element={page(<Sandbox />)} />
                   <Route path="legal" element={page(<Legal />)} />
                 </Route>
                 <Route path="play" element={<LegacyPlay />} />

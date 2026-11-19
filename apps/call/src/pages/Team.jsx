@@ -136,6 +136,7 @@ export default function Team() {
         {on === today && endOf(today) - shown.latestRead > 2 * DAY && <p className="team-stale">Latest read {day(shown.latestRead)}. Nothing newer is known yet.</p>}
         {fresh && <p className="team-fresh" role="status">New roster data is in.
           <button type="button" className="ghost" onClick={() => { setFresh(false); setRev(r => r + 1); }}>Show it</button></p>}
+        {on === today && <Link className="secondary team-compare" to={`/sandbox?from=${shown.team.id}`}>Open in sandbox</Link>}
         <Link className="secondary team-compare" to={`/compare?a=${shown.team.id}&ad=${on === today ? isoOf(Math.max(tracked, endOf(on) - 28 * DAY)) : on}&b=${shown.team.id}`}>Compare dates</Link>
       </div>
 

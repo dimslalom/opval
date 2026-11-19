@@ -1529,3 +1529,27 @@ a.team-handle { color: var(--ink); text-decoration: none; }
 .tl-row[data-hot='true'] .tl-label { color: var(--accent); }
 .tl-row[data-hot='true'] .tl-track { background: rgba(255, 255, 255, 0.04); }
 .change-list li[data-hot='true'] { background: rgba(255, 255, 255, 0.04); }
+
+/* Sandbox: hypothetical lineups. */
+.sandbox-drafts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+.sandbox-drafts .primary, .sandbox-drafts .secondary { min-height: 40px; padding: 0 14px; }
+.sandbox-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 10px; }
+.sandbox-name { min-width: 0; flex: 1 1 220px; min-height: 44px; padding: 0 14px; border: 1px solid var(--line-bracket); border-radius: 8px; background: var(--surface); color: var(--ink); font: 700 22px var(--font-display); text-transform: uppercase; }
+.sandbox-head .team-meta a { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
+.sandbox-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.sandbox-actions .secondary { min-height: 40px; padding: 0 14px; }
+.sandbox-tile { cursor: default; }
+.sandbox-tile .ghost { min-height: 32px; margin: 2px 10px 0; padding: 0; align-self: flex-start; font-size: var(--fs-micro); }
+.sandbox-empty { justify-content: center; align-items: center; min-height: 180px; border: 1px dashed var(--line-bracket) !important; color: var(--muted); }
+.sandbox-empty span { font: 700 16px var(--font-display); text-transform: uppercase; }
+.lineup li[data-target='true'] .sandbox-empty { border-color: var(--accent) !important; color: var(--ink); }
+.sandbox-search { margin-top: 10px; }
+.sandbox-results { list-style: none; margin: 6px 0 0; padding: 0; }
+.sandbox-results button { width: 100%; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 44px; padding: 4px 6px; border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink); text-align: left; cursor: pointer; }
+.sandbox-results button:hover, .sandbox-results button:focus-visible { background: rgba(255, 255, 255, 0.05); }
+.sandbox-results b { font: 700 16px var(--font-display); text-transform: uppercase; }
+.sandbox-results small { color: var(--muted); font-size: var(--fs-label); }
+.sandbox-checks ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-label); }
+.sandbox-checks li[data-level='error'] { color: var(--accent); }
+.sandbox-checks li[data-level='warning'] { color: var(--gold); }
+.sandbox-checks li[data-level='unchecked'] { color: var(--muted); }

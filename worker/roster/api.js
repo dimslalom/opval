@@ -143,6 +143,22 @@ export async function handleRosterV2(db, url) {
     return reply({ generatedAt: now(), at, latestRead: latestRead(src), sources: src, team: info, reads, announced, memberships: rows.map(m => membership(m, at, spans)) });
   }
 
+  // Person search for the sandbox: handles starting with (then containing) the query, each with
+  // where Riot's data lists them now (an open tenure confirmed in the last 30 days of reads).
+  if (path === '/api/roster/v2/people') {
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase().slice(0, 40);
+    if (q.length < 2) return reply({ people: [] });
+    const people = (await db.prepare(`SELECT p.id,p.handle,
+        (SELECT json_object('teamId',t.id,'team',t.name,'tag',t.tag,'league',t.league,'kind',m.kind,'status',m.status,'contractEnd',m.contract_end)
+          FROM roster_memberships m JOIN roster_teams t ON t.id=m.team_id
+          WHERE m.person_id=p.id AND m.end_before IS NULL
+            AND m.last_seen_at >= (SELECT MAX(observed_at) FROM roster_reads WHERE source_id=m.source_id) - 30*86400
+          ORDER BY m.last_seen_at DESC LIMIT 1) AS now
+      FROM roster_people p WHERE lower(p.handle) LIKE ?1
+      ORDER BY lower(p.handle) LIKE ?2 DESC, length(p.handle), p.handle LIMIT 12`).bind(`%${q}%`, `${q}%`).all()).results;
+    return reply({ people: people.map(p => ({ id: p.id, handle: p.handle, now: p.now ? JSON.parse(p.now) : null })) });
+  }
+
   if ((match = path.match(/^\/api\/roster\/v2\/people\/(\d+)$/))) {
     const id = Number(match[1]);
     const person = await db.prepare('SELECT id,handle FROM roster_people WHERE id=?').bind(id).first();

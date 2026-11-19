@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { IconArrowsExchange, IconCalendarEvent, IconColumns } from '@tabler/icons-react';
+import { IconArrowsExchange, IconCalendarEvent, IconColumns, IconFlask } from '@tabler/icons-react';
 import { playHome, showsPlayHome } from '../lib/playNavigation';
 
 export default function PublicShell() {
@@ -10,6 +10,7 @@ export default function PublicShell() {
   const tabs = [
     { to: '/', label: 'Rosters', Icon: IconArrowsExchange, active: !play && (pathname === '/' || /^\/(teams|players)\//i.test(pathname)) },
     { to: '/compare', label: 'Compare', Icon: IconColumns, active: /^\/compare\/?$/i.test(pathname) },
+    { to: '/sandbox', label: 'Sandbox', Icon: IconFlask, active: /^\/sandbox\/?$/i.test(pathname) },
     { to: playHome, label: 'Play', Icon: IconCalendarEvent, active: play },
   ];
   useEffect(() => { window.scrollTo(0, 0); }, [pathname, play]);
