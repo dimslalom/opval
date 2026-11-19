@@ -1502,3 +1502,11 @@ a.team-handle { color: var(--ink); text-decoration: none; }
 .roster-source-error { color: var(--accent); }
 .lineup li { display: flex; }
 .lineup-tile { height: 100%; }
+
+/* Rosters home: the eight 2027 partners as tiles, every other team as a chip below. */
+.public-team.is-unread { cursor: default; background: var(--surface); opacity: 0.6; }
+.public-team.is-unread:hover { border-color: transparent; }
+.team-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.team-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px 0 8px; border: 1px solid var(--line-bracket); border-radius: 999px; color: var(--ink); font-size: var(--fs-label); text-decoration: none; text-transform: uppercase; letter-spacing: 0.02em; }
+.team-chip:hover { border-color: var(--ink); }
+.team-chip b { color: var(--muted); font-variant-numeric: tabular-nums; }

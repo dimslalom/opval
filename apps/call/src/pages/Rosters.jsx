@@ -4,6 +4,7 @@ import { Crest } from '../components/Face';
 import RosterSource from '../components/RosterSource';
 import PersonPhoto from '../components/PersonPhoto';
 import { colorsFor, tagForName } from '../lib/orgs';
+import { splitLeague } from '../lib/partners';
 import { personPath, teamPath, title, useRoster, windowText } from '../lib/roster';
 
 const LEAGUES = [
@@ -25,7 +26,8 @@ export default function Rosters() {
   const league = leagues.some(l => l.id === params.get('league')) ? params.get('league') : 'AMERICAS';
 
   const q = query.trim().toLowerCase();
-  const teams = useMemo(() => (data?.teams ?? []).filter(t => (q ? `${t.name} ${t.tag ?? ''}`.toLowerCase().includes(q) : t.league === league)), [data, league, q]);
+  const matches = useMemo(() => (q ? (data?.teams ?? []).filter(t => `${t.name} ${t.tag ?? ''}`.toLowerCase().includes(q)) : []), [data, q]);
+  const { partners, others } = useMemo(() => splitLeague(league, (data?.teams ?? []).filter(t => t.league === league)), [data, league]);
 
   return <section className="roster-page">
     <h1>Rosters</h1>
@@ -39,18 +41,22 @@ export default function Rosters() {
           {leagues.map(l => <button key={l.id} type="button" className={league === l.id ? 'primary' : undefined} aria-pressed={league === l.id}
             onClick={() => setParams(l.id === 'AMERICAS' ? {} : { league: l.id }, { replace: true })}>{l.label}</button>)}
         </div>}
-        <div className="team-grid">
-          {teams.map(t => <Link key={t.id} className="team-tile public-team" to={teamPath(t)} style={{ '--team': colorsFor(tagForName(t.name) ?? t.tag)[0] }}>
-            <span className="team-tile-name"><Crest name={t.name} size={30} /><b>{t.name}</b></span>
-            {t.players || t.staff
-              ? <span className="public-team-counts">
-                <span><b>{t.players}</b> {t.players === 1 ? 'player' : 'players'}</span>
-                {t.staff > 0 && <span><b>{t.staff}</b> staff</span>}
-              </span>
-              : <span className="public-team-counts">Nobody listed in the latest read</span>}
-          </Link>)}
-        </div>
-        {teams.length === 0 && <p className="note">No teams match.</p>}
+        {q ? <>
+          <div className="team-grid">{matches.map(t => <TeamTile key={t.id} team={t} />)}</div>
+          {matches.length === 0 && <p className="note">No teams match.</p>}
+        </> : <>
+          {partners.length > 0 && <div className="team-grid">
+            {partners.map(p => <TeamTile key={p.name} name={p.name} team={p.team} />)}
+          </div>}
+          {others.length > 0 && <section className="roster-block">
+            <h2 className="sum"><b>{others.length}</b><span>{partners.length ? 'other teams in the contract database' : 'teams'}</span></h2>
+            <ul className="team-chips">
+              {others.map(t => <li key={t.id}><Link className="team-chip" to={teamPath(t)}>
+                <Crest name={t.name} size={20} /><span>{t.name}</span>{t.players > 0 && <b>{t.players}</b>}
+              </Link></li>)}
+            </ul>
+          </section>}
+        </>}
       </>}
       {recent?.changes?.length > 0 && <section className="roster-block">
         <h2 className="sum"><b>{recent.changes.length}</b><span>recent changes between reads</span></h2>
@@ -65,4 +71,23 @@ export default function Rosters() {
       </section>}
     </>}
   </section>;
+}
+
+// A partner tile: its roster counts when a source lists the team, otherwise a muted placeholder.
+function TeamTile({ name, team }) {
+  const label = name ?? team.name;
+  const style = { '--team': colorsFor(tagForName(label) ?? team?.tag)[0] };
+  const head = <span className="team-tile-name"><Crest name={label} size={30} /><b>{label}</b></span>;
+  if (!team) return <div className="team-tile public-team is-unread" style={style}>
+    {head}<span className="public-team-counts">Not in the contract database yet</span>
+  </div>;
+  return <Link className="team-tile public-team" to={teamPath(team)} style={style}>
+    {head}
+    {team.players || team.staff
+      ? <span className="public-team-counts">
+        <span><b>{team.players}</b> {team.players === 1 ? 'player' : 'players'}</span>
+        {team.staff > 0 && <span><b>{team.staff}</b> staff</span>}
+      </span>
+      : <span className="public-team-counts">Nobody listed in the latest read</span>}
+  </Link>;
 }
