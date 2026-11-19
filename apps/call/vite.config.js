@@ -16,6 +16,9 @@ export default defineConfig({
     proxy: {
       // In dev, read the live feed (GET only) so the app has real data.
       '/api/feed': { target: 'https://opval.dimas.works', changeOrigin: true },
+      // The roster evidence model (v2) runs on the local Worker until it is deployed. Listed
+      // first: Vite matches proxy keys in order.
+      '/api/roster/v2': 'http://localhost:8787',
       // Roster data is public and read-only too: read the live sources.
       '/api/roster': { target: 'https://opval.dimas.works', changeOrigin: true },
       // Accounts and saves run on a local Worker with a local database: `npm run call:api`.

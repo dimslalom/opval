@@ -8,6 +8,7 @@ import { AccountSettings } from '../components/AccountForm';
 import { GuessStrip } from '../components/TransferBets';
 import { useGame } from '../lib/gameContext';
 import { logoFor } from '../lib/orgs';
+import { playHome } from '../lib/playNavigation';
 
 const since = s => new Date(s * 1000).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 
@@ -94,7 +95,7 @@ export default function Profile() {
     {/* Your own profile is also your account: the controls only you see. */}
     {mine && <section className="roster-block profile-account">
       <h2 className="section">Account</h2>
-      <AccountSettings onDone={() => {}} onSignOut={() => navigate('/')} />
+      <AccountSettings onDone={() => {}} onSignOut={() => navigate(playHome)} />
     </section>}
   </section>;
 }

@@ -11,6 +11,22 @@
       "port": 8787
     },
     {
+      "name": "call-api-ingest",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "wrangler",
+        "dev",
+        "--local",
+        "--port",
+        "8787",
+        "--config",
+        "apps/call/wrangler.jsonc",
+        "--var",
+        "FEED_INGEST_TOKEN:local-dev"
+      ],
+      "port": 8787
+    },
+    {
       "name": "call-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

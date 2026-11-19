@@ -2,6 +2,33 @@ import { isAuthorized } from './auth.js';
 import { ingestMatches, recordSource } from './store.js';
 import { MAX_BODY_BYTES, validateEnvelope } from './validate.js';
 import { ingestTransfers, ingestContracts } from './roster.js';
+import { ingestRosterRun, RosterReadError } from '../roster/ingest.js';
+
+const GCD_LEAGUES = ['AMERICAS', 'CN', 'EMEA', 'PACIFIC'];
+const GCD_ARCHIVE_SHEET = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRmmWiBmMMD43m5VtZq54nKlmj0ZtythsA1qCpegwx-iRptx2HEsG0T3cQlG1r2AIiKxBWnaurJZQ9Q/pubhtml';
+
+async function postArchive(db, body, now) {
+  const timestamp = body.captureTimestamp;
+  if (typeof timestamp !== 'string' || !/^\d{14}$/.test(timestamp) || body.runId !== `wayback-${timestamp}`)
+    return reply({ error: 'invalid Wayback capture timestamp or run ID' }, 400);
+  const iso = timestamp.replace(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$1-$2-$3T$4:$5:$6.000Z');
+  const date = new Date(iso);
+  const observedAt = date.getTime() / 1000;
+  if (!Number.isFinite(observedAt) || date.toISOString() !== iso || timestamp < '20221101000000' || observedAt > now)
+    return reply({ error: 'invalid Wayback capture date' }, 400);
+
+  const expectLeagues = timestamp < '20240101000000' ? GCD_LEAGUES.filter(league => league !== 'CN') : GCD_LEAGUES;
+  try {
+    const result = await ingestRosterRun(db, {
+      sourceId: 'riot-gcd', runKey: body.runId, observedAt, rows: body.contracts, expectLeagues,
+      archiveUrl: `https://web.archive.org/web/${timestamp}/${GCD_ARCHIVE_SHEET}`,
+    });
+    return reply(result);
+  } catch (error) {
+    if (error instanceof RosterReadError) return reply({ error: error.message }, error.status);
+    throw error;
+  }
+}
 
 // Feed routes: POST /internal/ingest (bearer) and read-only GET /api/feed/*.
 // Raw stats only. Points are computed by the client's shared scoring module,
@@ -49,19 +76,31 @@ async function postIngest(request, env) {
   if (!envelope.ok) return reply({ error: envelope.error }, envelope.status);
 
   const now = Math.floor(Date.now() / 1000);
+  if (body.kind === 'contracts-archive') return postArchive(env.DB, body, now);
   if (body.kind === 'matches') {
     const result = await ingestMatches(env.DB, body, now);
     await recordSource(env.DB, 'matches', { ok: true }, now);
     return reply(result);
   }
   if (body.kind === 'transfers' || body.kind === 'contracts') {
+    // The evidence model (worker/roster) takes every GCD row: players, coaches, reserves. Its
+    // failure is recorded on roster_sources and never blocks the legacy game path below.
+    let evidence;
+    if (body.kind === 'contracts') {
+      try {
+        // An older poller sends active players only, with no role on any row: such a read says
+        // nothing about coaches and staff, so it must not close them.
+        const covers = body.contracts.some(r => r && r.role != null) ? null : ['player'];
+        evidence = await ingestRosterRun(env.DB, { sourceId: 'riot-gcd', runKey: body.runId, observedAt: now, rows: body.contracts, expectLeagues: GCD_LEAGUES, covers });
+      } catch (error) { evidence = { error: error.message }; }
+    }
     try {
       const result = body.kind === 'transfers' ? await ingestTransfers(env.DB, body, now) : await ingestContracts(env.DB, body, now);
       await recordSource(env.DB, body.kind, { ok: true }, now);
-      return reply(result);
+      return reply(evidence ? { ...result, evidence } : result);
     } catch (error) {
       await recordSource(env.DB, body.kind, { ok: false, error: error.message }, now);
-      return reply({ error: error.message }, 400);
+      return reply(evidence ? { error: error.message, evidence } : { error: error.message }, 400);
     }
   }
   if (body.kind === 'heartbeat') {

@@ -4,7 +4,8 @@ Fail closed on markup changes: no empty payload is sent as an official snapshot.
 import os
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from urllib.parse import urljoin
 
 import httpx
@@ -63,9 +64,10 @@ def parse_vlr(html):
     return list(out.values())
 
 
-def parse_gcd(html):
+def parse_gcd(html, *, use_sheet_league=False):
     tree = HTMLParser(html)
     rows = []
+    league_by_gid = {str(gid): league for league, gid in GCD_SHEETS.items()}
     for table in tree.css('table'):
         tr = table.css('tr')
         if not tr:
@@ -80,25 +82,49 @@ def parse_gcd(html):
             league = col('league', 'region')
             role = col('role')
             status = col('roster status')
+            tag = col('team tag')
             if player is None or team is None or end is None:
                 continue
+            sheet_league = None
+            if use_sheet_league and league is None:
+                # The published workbook wraps each table in its own Google sheet ID.
+                parent = table.parent
+                while parent and sheet_league is None:
+                    sheet_league = league_by_gid.get(parent.attributes.get('id'))
+                    parent = parent.parent
+            def cell(cells, i):
+                return cells[i] if i is not None and i < len(cells) else ''
+            # Every listed person (players, reserves, coaches, staff). The server keeps only active
+            # players for the weekly game. Legal names, residency and contacts are never sent.
             for item in tr[header_index + 1:]:
                 cells = [clean(x.text()) for x in item.css('td')]
                 if len(cells) <= max(player, team, end):
                     continue
                 if not cells[player] or not cells[team]:
                     continue
-                if role is not None and (role >= len(cells) or cells[role].upper() not in ('PLAYER', 'ACTIVE PLAYER')):
-                    continue
-                if status is not None and status < len(cells) and cells[status].lower() != 'active':
-                    continue
                 rows.append({'player': cells[player], 'team': cells[team],
-                             'league': cells[league] if league is not None and league < len(cells) else 'VCT',
-                             'contractEnd': cells[end] or None})
+                             'league': cell(cells, league) or sheet_league or 'VCT',
+                             'contractEnd': cells[end] or None,
+                             'role': cell(cells, role) or None,
+                             'status': cell(cells, status) or None,
+                             'teamTag': cell(cells, tag) or None})
             break
     if len(rows) < GCD_MIN_ROWS:
         raise ValueError(f'GCD markup changed or incomplete: only {len(rows)} rows parsed')
     return rows
+
+
+def retry_delay(response, fallback):
+    retry_after = response.headers.get('Retry-After')
+    if not retry_after:
+        return fallback
+    try:
+        if retry_after.isdecimal():
+            return max(fallback, int(retry_after))
+        retry_at = parsedate_to_datetime(retry_after).astimezone(timezone.utc)
+        return max(fallback, (retry_at - datetime.now(timezone.utc)).total_seconds())
+    except (ValueError, OverflowError):
+        return fallback
 
 
 def request_with_retry(client, method, url, attempts=3, delay=1.0, sleep=time.sleep, **kwargs):
@@ -106,7 +132,7 @@ def request_with_retry(client, method, url, attempts=3, delay=1.0, sleep=time.sl
         try:
             response = client.request(method, url, **kwargs)
             if (response.status_code >= 500 or response.status_code == 429) and attempt < attempts:
-                sleep(delay * (2 ** (attempt - 1)))
+                sleep(retry_delay(response, delay * (2 ** (attempt - 1))))
                 continue
             response.raise_for_status()
             return response

@@ -25,10 +25,17 @@ export async function ingestTransfers(db,body,t=now()) {
   return {accepted:res.meta.changes};
 }
 const rowOf=r=>({player:norm(r.player),team:norm(r.team),league:norm(r.league),contractEnd:norm(r.contractEnd)||null});
+// The weekly game only ever scored active players. The feed now also sends coaches and reserves
+// (for the evidence model), so they are dropped here before any snapshot or event is made.
+// Rows from an older feed carry no role/status at all and were already filtered; a blank sent value
+// fails, as it did in the old parser.
+const legacyRow=r=>(r.role===undefined||['player','active player'].includes(key(r.role)))&&(r.status===undefined||key(r.status)==='active');
 export async function ingestContracts(db,body,t=now()) {
-  if (!Array.isArray(body.contracts)||!body.contracts.length||body.contracts.length>3000) throw new Error('bad contracts');
+  if (!Array.isArray(body.contracts)||!body.contracts.length||body.contracts.length>5000) throw new Error('bad contracts');
+  const contracts=body.contracts.filter(legacyRow);
+  if (!contracts.length) throw new Error('bad contracts');
   const input=new Map(),ambiguous=[];
-  for (const raw of body.contracts) {
+  for (const raw of contracts) {
     const row=rowOf(raw);
     if (!row.player||!row.team||!row.league) {ambiguous.push({key:'missing',row:raw});continue;}
     const id=`${key(row.player)}|${key(row.league)}`;

@@ -86,7 +86,7 @@ function Popover({ anchor, onClose, color, children }) {
 }
 
 // The largest card scale at which every card fits the box, trying 1 to 3 rows, so the sheet never scrolls.
-const GAP_X = 22, GAP_Y = 18, LABEL = 30;
+const GAP_X = 20, GAP_Y = 16, LABEL = 30;
 function useFitScale(ref, count) {
   const [fit, setFit] = useState({ scale: 0.3, per: count });
   useLayoutEffect(() => {

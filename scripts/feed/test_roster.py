@@ -1,7 +1,49 @@
 import unittest
 from unittest.mock import MagicMock
 import httpx
+from scripts.feed.gcd_archive import archive_url, capture_timestamps, fetch_capture, parse_capture
 from scripts.feed.roster import parse_gcd, parse_vlr, request_with_retry
+
+
+class GCDArchiveTests(unittest.TestCase):
+    def test_index_sorts_and_deduplicates_by_timestamp(self):
+        first, second = '20221114190655', '20240501113418'
+        self.assertEqual(capture_timestamps([['timestamp'], [second], [first], [second]]), [first, second])
+
+    def test_historical_league_coverage(self):
+        header = '<tr><td>League</td><td>Team</td><td>Player</td><td>Contract End</td></tr>'
+        def capture(leagues):
+            rows = ''.join(f'<tr><td>{league}</td><td>Team</td><td>{league}-{i}</td><td>2025</td></tr>'
+                           for league in leagues for i in range(10))
+            return f'<table>{header}{rows}</table>'
+        early = capture(['AMERICAS', 'EMEA', 'APAC'])
+        self.assertEqual({row['league'] for row in parse_capture('20221114190655', early)},
+                         {'AMERICAS', 'EMEA', 'PACIFIC'})
+        with self.assertRaisesRegex(ValueError, 'CN'):
+            parse_capture('20240501113418', early)
+        self.assertEqual(len(parse_capture('20240501113418', capture(['AMERICAS', 'EMEA', 'PACIFIC', 'CN']))), 40)
+
+    def test_skips_verified_sheet_shell_but_refuses_different_capture(self):
+        timestamp = '20261005002743'
+        def archive_response(request):
+            self.assertEqual(str(request.url), archive_url(timestamp, raw=True))
+            return httpx.Response(200, headers={'Memento-Datetime': memento},
+                                  text='<title>VALORANT Global Contract Database - Google Drive</title>')
+        with httpx.Client(transport=httpx.MockTransport(archive_response)) as client:
+            memento = 'Mon, 05 Oct 2026 00:27:43 GMT'
+            self.assertIn('skipped', fetch_capture(client, timestamp))
+            memento = 'Mon, 05 Oct 2026 00:28:43 GMT'
+            with self.assertRaisesRegex(RuntimeError, 'exact capture'):
+                fetch_capture(client, timestamp)
+
+    def test_archive_recovers_missing_league_header_from_known_sheet_id(self):
+        header = '<tr><td>mad</td><td>Team</td><td>Player</td><td>Contract End</td></tr>'
+        rows = ''.join(f'<tr><td>AMERICAS</td><td>Team</td><td>p{i}</td><td>2025</td></tr>'
+                       for i in range(10))
+        table = f'<div id="1856086064"><div><table>{header}{rows}</table></div></div>'
+        self.assertEqual({r['league'] for r in parse_gcd(table, use_sheet_league=True)}, {'AMERICAS'})
+        self.assertEqual({r['league'] for r in parse_gcd(table.replace('1856086064', 'unknown'), use_sheet_league=True)}, {'VCT'})
+
 
 class RosterParserTests(unittest.TestCase):
     def test_vlr_row(self):
@@ -31,6 +73,16 @@ class RosterParserTests(unittest.TestCase):
         body = ''.join(f'<tr><td>AMERICAS</td><td>T{i}</td><td>P{i}</td><td>PLAYER</td><td>2027</td><td>Active</td></tr>' for i in range(9))
         with self.assertRaises(ValueError):
             parse_gcd(f'<table>{head}{body}</table>')
+
+    def test_staff_and_reserves_are_sent_without_personal_details(self):
+        head = '<tr><td>League</td><td>Team</td><td>Official Tournament Handle</td><td>Role</td><td>Legal First Name</td><td>Legal Family Name</td><td>End Date (Month Day, Year)</td><td>Resident Status</td><td>Roster Status</td><td>Team Tag</td><td>Team Contact Information</td></tr>'
+        players = ''.join(f'<tr><td>EMEA</td><td>T{i}</td><td>P{i}</td><td>PLAYER</td><td>First</td><td>Last</td><td>2027</td><td>Resident</td><td>Active</td><td>T{i}</td><td>a@b.c</td></tr>' for i in range(10))
+        coach = '<tr><td>EMEA</td><td>T0</td><td>Coachy</td><td>HEAD COACH</td><td>First</td><td>Last</td><td>2027</td><td>/</td><td>Staff</td><td>T0</td><td></td></tr>'
+        rows = parse_gcd(f'<table>{head}{players}{coach}</table>')
+        self.assertEqual(len(rows), 11)
+        self.assertEqual(rows[-1], {'player': 'Coachy', 'team': 'T0', 'league': 'EMEA', 'contractEnd': '2027', 'role': 'HEAD COACH', 'status': 'Staff', 'teamTag': 'T0'})
+        self.assertNotIn('a@b.c', repr(rows))
+        self.assertNotIn('First', repr(rows))
 
     def test_markup_failure_is_loud(self):
         with self.assertRaises(ValueError):

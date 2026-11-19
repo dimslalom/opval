@@ -16,9 +16,7 @@ export function installOfflinePreview() {
   const bingoCards = new Map();
   const teams = ['FNC', 'PRX', 'GEN', 'SEN', 'G2', 'DRX'];
   const matches = [2, 5, 8].map((hours, i) => ({ matchId: 990001 + i, startsAt: now + hours * 3600, status: 'upcoming', bestOf: 3, round: 'Playoffs · Upper bracket', teams: teams.slice(i * 2, i * 2 + 2).map(tag => ({ tag, name: tag })), eventId: 2766 }));
-  sessionStorage.setItem('opval-played', '1');
   sessionStorage.setItem('opval-offline-preview', '1');
-  localStorage.setItem('opval-rules-seen', '1');
   window.fetch = async (input, options = {}) => {
     const url = new URL(typeof input === 'string' ? input : input.url, location.origin);
     if (url.origin !== location.origin || !url.pathname.startsWith('/api/')) return original(input, options);

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useGame } from '../lib/gameContext';
+import { playHome } from '../lib/playNavigation';
 import { weekKey } from '../lib/weeklyBingo';
 
 const BOARDS = [
@@ -63,7 +64,7 @@ export default function Leaderboard() {
     {!error && shown && shown.entries.length === 0 && <div className="leaderboard-empty">
       <strong>No scores yet</strong>
       <p>{board === 'bingo' ? 'Submit a weekly card to enter.' : 'Reveal a finished match to enter.'}</p>
-      {board === 'bingo' ? <Link className="secondary" to="/bingo">Bingo</Link> : <Link className="secondary" to="/">Matches</Link>}
+      {board === 'bingo' ? <Link className="secondary" to="/play/bingo">Bingo</Link> : <Link className="secondary" to={playHome}>Matches</Link>}
     </div>}
     {!error && shown && shown.entries.length > 0 && <>
       <div className="leaderboard-columns" aria-hidden="true"><span>Player</span><span>Pts</span></div>

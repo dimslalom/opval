@@ -2,7 +2,7 @@
 // Rule of thumb: never let a worse payload overwrite better stored data.
 
 export const SCHEMA_VERSION = 1;
-export const KINDS = ['matches', 'schedule', 'transfers', 'players', 'values', 'contracts', 'heartbeat'];
+export const KINDS = ['matches', 'schedule', 'transfers', 'players', 'values', 'contracts', 'contracts-archive', 'heartbeat'];
 export const MAX_BODY_BYTES = 512 * 1024;
 
 const int = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;

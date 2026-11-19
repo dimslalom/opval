@@ -16,3 +16,6 @@ export const untilOf = (unix, now) => {
   if (m < 48 * 60) return `in ${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}`;
   return `in ${Math.floor(m / 1440)}d`;
 };
+
+// A roster date at the precision we know it: day, month, year.
+export const rosterDay = s => new Date(s * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });

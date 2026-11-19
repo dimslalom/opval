@@ -1,5 +1,6 @@
 import { handleFeed } from '../../../worker/feed/routes.js';
 import { getRoster } from '../../../worker/feed/roster.js';
+import { handleRosterV2 } from '../../../worker/roster/api.js';
 import { handleAccounts } from './accounts.js';
 import { settleAll } from './settle.js';
 import { settleWeeklyBingo } from './weeklyBingo.js';
@@ -63,9 +64,20 @@ export default {
     ctx.waitUntil(settleAll(env).catch(e => console.error(`settle failed: ${e.stack ?? e}`)));
   },
 
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    if (url.pathname.startsWith('/api/roster/v2/')) {
+      if (request.method !== 'GET') return secure(Response.json({ error: 'method not allowed' }, { status: 405 }));
+      // Roster data changes at most once per feed run, so answers are kept at the edge for a few
+      // minutes: D1's free plan bills every row a query reads, and a team page reads thousands.
+      const cache = caches.default;
+      const hit = await cache.match(request);
+      if (hit) return secure(hit);
+      const res = await handleRosterV2(env.DB, url);
+      if (res.ok) ctx.waitUntil(cache.put(request, res.clone()));
+      return secure(res);
+    }
     if (url.pathname.startsWith('/api/roster/')) return secure(await getRoster(env.DB, url.pathname, url));
     if (url.pathname.startsWith('/api/feed/') || url.pathname === '/internal/ingest') return secure(await handleFeed(request, env, url));
     if (url.pathname.startsWith('/api/')) {
