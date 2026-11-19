@@ -1502,6 +1502,7 @@ a.team-handle { color: var(--ink); text-decoration: none; }
 .roster-source-error { color: var(--accent); }
 .lineup li { display: flex; }
 .lineup-tile { height: 100%; }
+.change-when a { color: var(--muted); text-underline-offset: 3px; }
 
 /* Rosters home: the eight 2027 partners as tiles, every other team as a chip below. */
 .public-team.is-unread { cursor: default; background: var(--surface); opacity: 0.6; }
@@ -1510,3 +1511,6 @@ a.team-handle { color: var(--ink); text-decoration: none; }
 .team-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px 0 8px; border: 1px solid var(--line-bracket); border-radius: 999px; color: var(--ink); font-size: var(--fs-label); text-decoration: none; text-transform: uppercase; letter-spacing: 0.02em; }
 .team-chip:hover { border-color: var(--ink); }
 .team-chip b { color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Manual lineup entries: same tile, dashed edge, so they read as not-yet-registered. */
+.lineup li[data-manual] .lineup-tile { border: 1px dashed var(--line-bracket); text-decoration: none; }
+.lineup li[data-manual='reported'] .lineup-flag { color: var(--muted); }

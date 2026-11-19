@@ -271,3 +271,18 @@ test('a GCD post without roles is players-only, and name matching prefers the te
   const staff = await env.DB.prepare("SELECT COUNT(*) AS n FROM roster_memberships WHERE kind='coach' AND end_before IS NULL").first();
   assert.equal(staff.n, 4); // coaches untouched
 });
+
+test('an announced move shows until Riot data agrees, then stops showing', async () => {
+  const db = d1();
+  await run(db, base(), 'r1', 100);
+  const a1 = (await db.prepare("SELECT id FROM roster_teams WHERE tag='A1'").first()).id;
+  for (const [handle, move, basis] of [['Delta', 'join', 'reported'], ['alpha', 'leave', 'announced'], ['bravo', 'join', 'announced']]) {
+    await db.prepare("INSERT INTO roster_announcements(team_id,handle,move,basis,announced_on,added_at) VALUES(?,?,?,?,'2026-11-19',1)").bind(a1, handle, move, basis).run();
+  }
+  const shown = async () => (await get(db, `/api/roster/v2/teams/${a1}`)).announced.map(a => `${a.basis} ${a.move} ${a.handle}`);
+  assert.deepEqual(await shown(), ['reported join Delta', 'announced leave alpha']); // bravo is already listed: nothing to announce
+  // The directory counts manual entries first: alpha out, Delta in.
+  assert.equal((await get(db, '/api/roster/v2/teams')).teams.find(t => t.id === a1).players, 2);
+  await run(db, [...base().filter(r => r.player !== 'alpha'), row('delta', 'A1')], 'r2', 200);
+  assert.deepEqual(await shown(), []); // Riot now lists delta and no longer lists alpha
+});

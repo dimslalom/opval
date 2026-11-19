@@ -10,6 +10,7 @@ import { DAY, endOf, isoDay, isoOf, title, useRoster, validIso, windowText } fro
 import { assignSeats, lineupEras } from '../lib/seats';
 
 const KIND = { player: 'Players', coach: 'Coaches', staff: 'Staff' };
+const announcedDay = iso => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 const month = t => new Date(t * 1000).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 // Status values that are the default for their section, so not worth a flag.
 const NORMAL = new Set(['active', 'staff']);
@@ -29,6 +30,10 @@ export default function Team() {
   const shown = data && data.team.id === Number(teamId) ? data : null;
   const memberships = useMemo(() => shown?.memberships ?? [], [shown]);
   const listed = memberships.filter(m => m.presence === 'present' || m.presence === 'possible');
+  // Today's lineup puts manual entries first: announced or reported leaves drop out, joins come in.
+  const manual = on === today ? (shown?.announced ?? []) : [];
+  const leaving = new Set(manual.filter(a => a.move === 'leave').map(a => `${a.kind}|${a.handle.toLowerCase()}`));
+  const BASIS = { announced: 'Announced', reported: 'Reported' };
   // When this team first appears in its source (a promoted team appears later than the source began).
   const tracked = Math.min(...memberships.map(m => m.joined.by));
   const before = shown && Number.isFinite(tracked) && endOf(on) < tracked;
@@ -103,23 +108,34 @@ export default function Team() {
       {before
         ? <p className="note">This team first appears in the source on {day(tracked)}. Who was on it before that is not known.</p>
         : ['player', 'coach', 'staff'].map(kind => {
-          const list = listed.filter(m => m.kind === kind)
+          const riot = listed.filter(m => m.kind === kind && !leaving.has(`${kind}|${m.handle.toLowerCase()}`))
             // Seat order keeps a lineup stable across dates; reserves and the like sit after the actives.
             .sort((a, b) => NORMAL.has(b.status) - NORMAL.has(a.status) || (seats.get(a.id)?.seat ?? 99) - (seats.get(b.id)?.seat ?? 99));
+          const joining = manual.filter(a => a.move === 'join' && a.kind === kind);
+          const list = [...riot, ...joining.map(a => ({ id: `manual-${a.id}`, handle: a.handle, manual: a }))];
           if (!list.length) return null;
           const isSeats = kind === 'player';
           // The contract end most of the section shares is said once, in its header; tiles show
           // only the exceptions. (Two or more people must share it, or every tile shows its own.)
-          const counts = list.reduce((out, m) => out.set(m.contractEnd, (out.get(m.contractEnd) ?? 0) + 1), new Map());
-          const [commonEnd, commonCount] = [...counts].sort((a, b) => b[1] - a[1])[0];
-          const sameEnd = commonCount > 1 || list.length === 1 ? commonEnd : undefined;
+          // (Only Riot's rows have contracts; manual entries never do.)
+          const counts = riot.reduce((out, m) => out.set(m.contractEnd, (out.get(m.contractEnd) ?? 0) + 1), new Map());
+          const [commonEnd, commonCount] = [...counts].sort((a, b) => b[1] - a[1])[0] ?? [undefined, 0];
+          const sameEnd = commonCount > 1 || riot.length === 1 ? commonEnd : undefined;
           return <section key={kind} className="roster-block">
             <header className="lineup-head">
               <h2 className="sum"><b>{list.length}</b><span>{KIND[kind]}</span></h2>
-              {sameEnd !== undefined && <p className="lineup-common">{sameEnd ? `${list.length === commonCount ? 'Contracts end' : 'Most contracts end'} ${sameEnd}` : 'No contract end listed'}</p>}
+              {sameEnd !== undefined && <p className="lineup-common">{sameEnd ? `${riot.length === commonCount && !joining.length ? 'Contracts end' : 'Most contracts end'} ${sameEnd}` : 'No contract end listed'}</p>}
             </header>
             <ul className={isSeats ? 'lineup seats' : 'lineup'} style={isSeats ? { '--n': Math.min(list.length, 6) } : undefined}>
-              {list.map(m => <li key={m.id} data-presence={m.presence}>
+              {list.map(m => m.manual ? <li key={m.id} data-manual={m.manual.basis}>
+                <a className="lineup-tile" href={m.manual.sourceUrl ?? undefined} target="_blank" rel="noreferrer">
+                  <PersonPhoto handle={m.handle} team={shown.team.name} />
+                  <b className="lineup-name">{m.handle}</b>
+                  {kind !== 'player' && <small>{title(kind)}</small>}
+                  <small className="lineup-flag">{BASIS[m.manual.basis]} {announcedDay(m.manual.announcedOn)}</small>
+                  <small>Not yet in Riot's database</small>
+                </a>
+              </li> : <li key={m.id} data-presence={m.presence}>
                 <button type="button" className="lineup-tile" onClick={() => setSelectedId(m.id)}>
                   <PersonPhoto handle={m.handle} team={shown.team.name} />
                   <b className="lineup-name">{m.handle}</b>
@@ -135,6 +151,21 @@ export default function Team() {
           </section>;
         })}
       {!before && listed.length === 0 && <p className="note">Nobody is listed for this team on this date.</p>}
+
+      {on === today && shown.announced?.length > 0 && <section className="roster-block">
+        <h2 className="sum"><b>{shown.announced.length}</b><span>{shown.announced.length === 1 ? 'change' : 'changes'} not yet in Riot's database</span></h2>
+        <ul className="change-list">
+          {shown.announced.map(a => <li key={a.id}>
+            <span className="change-verb" data-verb={a.move === 'join' ? 'Joined' : 'Left'}>{a.move === 'join' ? 'Joining' : 'Leaving'}</span>
+            <span className="change-who"><PersonPhoto handle={a.handle} team={shown.team.name} size="chip" />{a.handle}</span>
+            <span className="change-role">{a.kind === 'player' ? '' : title(a.kind)}</span>
+            <span className="change-when">{a.sourceUrl
+              ? <a href={a.sourceUrl} target="_blank" rel="noreferrer">{BASIS[a.basis]} {announcedDay(a.announcedOn)}</a>
+              : `${BASIS[a.basis]} ${announcedDay(a.announcedOn)}`}</span>
+          </li>)}
+        </ul>
+        <p className="note">Added by hand. Announced means the team said so; reported means journalists' sources did. Both are shown in the lineup above, ahead of Riot's contract database, until Riot's database lists the change.</p>
+      </section>}
 
       {Number.isFinite(tracked) && <section className="roster-block" aria-label="Who was here when">
         <h2 className="sum"><span>Who was here when</span></h2>

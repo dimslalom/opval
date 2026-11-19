@@ -11,6 +11,7 @@ test('baseline tenure: nothing is claimed before tracking began', () => {
   assert.equal(presenceAt(baseline, 100), 'present');
   assert.equal(presenceAt(baseline, 300), 'present');
   assert.equal(presenceAt(baseline, 301), 'possible'); // open, but after the latest read
+  assert.equal(presenceAt(baseline, 300 + 31 * 86400), 'unknown'); // not confirmed for over 30 days
 });
 
 test('join and leave windows stay uncertain, outside them is absent', () => {
