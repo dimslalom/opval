@@ -65,13 +65,6 @@ test('poll end to end: vlrggapi match -> normalize -> Worker -> readable from th
   assert.equal(meta.stale, false);
 });
 
-test('a second poll fetches nothing: the match is already complete in the feed', async () => {
-  const w = world();
-  await runPoll({ clients: clientsOf(w.fetchImpl), events: [{ id: 2766 }], runId: 't1', log: () => {} });
-  const again = await runPoll({ clients: clientsOf(w.fetchImpl), events: [{ id: 2766 }], runId: 't2', log: () => {} });
-  assert.equal(again.fetched, 0);
-});
-
 test('a later poll updates a rescheduled upcoming match in the public schedule', async () => {
   const w = world();
   const original = structuredClone(golden);

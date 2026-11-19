@@ -1,24 +1,11 @@
-import { ECONOMY, PACK_ODDS, STARTER_MIX } from './rules.js';
-import { pickWeighted, rngFor, shuffle } from '../shared/rng.js';
+import { ECONOMY, PACK_ODDS } from './rules.js';
+import { pickWeighted, rngFor } from '../shared/rng.js';
 
 // Packs draw from a pool of { pid, tier } the player can actually receive (feed
 // players that have a card). Deterministic from (seed, pack number). Never gives
 // a card you already own: if the pool runs dry you get credits instead.
 
 const tierOf = entry => (entry.tier === 'icon' ? 'gold' : entry.tier);
-
-export function starterCollection(seed, pool) {
-  const rng = rngFor(seed, 'starter');
-  const picked = [];
-  for (const [tier, count] of Object.entries(STARTER_MIX)) {
-    const options = shuffle(rng, pool.filter(e => tierOf(e) === tier && !picked.includes(e.pid)));
-    picked.push(...options.slice(0, count).map(e => e.pid));
-  }
-  // Short on a tier (a small pool): top up from anything left.
-  const rest = shuffle(rng, pool.filter(e => !picked.includes(e.pid)));
-  while (picked.length < ECONOMY.starterCards && rest.length) picked.push(rest.pop().pid);
-  return picked;
-}
 
 export function openPack(seed, packNumber, pool, owned) {
   const rng = rngFor(seed, 'pack', packNumber);

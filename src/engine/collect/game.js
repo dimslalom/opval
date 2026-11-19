@@ -192,53 +192,6 @@ export function rescoreCalls(state) {
   };
 }
 
-// Resolve a matchday against its finished series. Returns { state, report }.
-// `md.matches` are the series; calls you did not make simply score nothing and
-// do not break your streak (a skipped series is not a wrong one).
-export function resolveMatchday(state, md, { teamOf }) {
-  let streak = state.streak;
-  const calls = [];
-  let callPoints = 0;
-  let trackedPoints = 0;
-  const trackedLines = new Map();
-
-  for (const series of md.matches) {
-    const points = scoreSeries(series);
-    for (const pid of state.tracked) {
-      const entry = points.get(pid);
-      if (!entry) continue;
-      trackedPoints += entry.total;
-      trackedLines.set(pid, (trackedLines.get(pid) ?? 0) + entry.total);
-    }
-    const call = state.calls[series.matchId];
-    if (!call || call.winner == null) continue;
-    const result = resolveCall(call, series, points, { tracked: state.tracked, teamOf, streak });
-    streak = result.winnerRight ? streak + 1 : 0;
-    callPoints += result.total;
-    calls.push({ matchId: series.matchId, call, result });
-  }
-
-  const report = {
-    mdId: md.id,
-    callPoints,
-    trackedPoints,
-    total: callPoints + trackedPoints,
-    callsMade: calls.length,
-    callsRight: calls.filter(c => c.result.winnerRight).length,
-    calls,
-    trackedLines: [...trackedLines.entries()].map(([pid, total]) => ({ pid, total })).sort((a, b) => b.total - a.total),
-  };
-  return {
-    state: {
-      ...state,
-      streak,
-      credits: state.credits + report.total * ECONOMY.creditsPerPoint,
-      history: [...state.history, { mdId: md.id, callPoints, trackedPoints, callsMade: report.callsMade, callsRight: report.callsRight }],
-    },
-    report,
-  };
-}
-
 export const totalScore = state => state.history.reduce((sum, h) => sum + h.callPoints + h.trackedPoints, 0);
 export const callRecord = state => ({
   made: state.history.filter(h => h.called).length,

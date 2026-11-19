@@ -57,15 +57,3 @@ export function scoreSeries(match) {
   });
   return out;
 }
-
-// A lineup scores its starters; the captain's points count double (negatives too).
-export function scoreLineup(starters, captainId, points) {
-  let total = 0;
-  const slots = starters.map(id => {
-    const own = points.get(id)?.total ?? 0;
-    const counted = id === captainId ? own * SCORING.captain : own;
-    total += counted;
-    return { vlrId: id, points: own, counted };
-  });
-  return { total, slots };
-}

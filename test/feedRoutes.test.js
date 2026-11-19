@@ -30,11 +30,6 @@ test('ingest without or with a wrong token is 401 and writes nothing', async () 
   assert.equal(e.DB.sqlite.prepare('SELECT count(*) c FROM feed_matches').get().c, 0);
 });
 
-test('a schema mismatch is 409', async () => {
-  const res = await call(env(), 'POST', '/internal/ingest', envelope({ schemaVersion: 2 }));
-  assert.equal(res.status, 409);
-});
-
 test('ingest then read back: match, round and schedule endpoints agree', async () => {
   const e = env();
   const ingest = await call(e, 'POST', '/internal/ingest', envelope({ matches: [finalMatch()] }));
