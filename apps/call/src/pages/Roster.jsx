@@ -16,8 +16,8 @@ const LEAGUES = [
 ];
 const MOVES_SHOWN = 5;
 const nowS = () => Math.floor(Date.now() / 1000);
-const dayOf = s => new Date(s * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-const dayKeyOf = key => new Date(`${key}T00:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const dayOf = s => new Date(s * 1000).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+const dayKeyOf = key => new Date(`${key}T00:00:00Z`).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 function ago(s) {
   const d = Math.max(0, nowS() - s);
   return d < 3600 ? `${Math.max(1, Math.round(d / 60))}m` : d < 86400 ? `${Math.round(d / 3600)}h` : `${Math.round(d / 86400)}d`;

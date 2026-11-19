@@ -67,7 +67,7 @@ export default function HowTo({ onDone }) {
     <section className="guide-row">
       <div className="guide-copy">
         <h3>Play bingo</h3>
-        <p>Pick four squares during this week and lock your card. Later matches and official roster changes can score. Name a match to earn more. Lines and a full card pay again.</p>
+        <p>Pick four squares and lock your card. Matches and official roster changes later in the week can complete them. Name a match to earn more. Lines and a full card pay extra.</p>
       </div>
       {/* A mini weekly card in the real card's language: short names, the target as logos, a hit in green glass. */}
       <div className="guide-bingo" role="img" aria-label="Example weekly bingo card: Overtime in NRG against T1 for 5 points has hit; 13-5 stomp in any match for 2; Player joins for 5; Ace for 3">
@@ -80,7 +80,7 @@ export default function HowTo({ onDone }) {
 
     <section className="guide-row guide-row-last">
       <div className="guide-copy">
-        <h3>Reveal &amp; collect</h3>
+        <h3>Reveal and collect</h3>
         <p>Reveal finished results to score your call and cards. Earn credits for packs.</p>
       </div>
       <div className="guide-reward" role="img" aria-label={`Points earn credits; ${ECONOMY.packCost} credits opens ${ECONOMY.packSize} cards`}>

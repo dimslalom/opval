@@ -75,7 +75,7 @@ async function limited(env, key, max, windowSecs) {
   return row.n > max;
 }
 const ip = request => request.headers.get('CF-Connecting-IP') ?? 'local';
-const tooMany = () => reply({ error: 'Too many attempts. Try again later.' }, 429);
+const tooMany = () => reply({ error: 'Too many attempts. Wait a few minutes, then try again.' }, 429);
 
 async function startSession(env, userId) {
   const token = hex(crypto.getRandomValues(new Uint8Array(32)));
@@ -113,8 +113,8 @@ function credentials(body) {
 async function signup(request, env) {
   if (await limited(env, `signup:${ip(request)}`, 5, 3600)) return tooMany();
   const { username, password } = credentials(await readJson(request));
-  if (!USERNAME.test(username)) return reply({ error: 'Username: 3 to 20 letters, numbers or underscores.' }, 400);
-  if (password.length < 8 || password.length > 128) return reply({ error: 'Password: 8 to 128 characters.' }, 400);
+  if (!USERNAME.test(username)) return reply({ error: 'Use 3 to 20 letters, numbers or underscores for your username.' }, 400);
+  if (password.length < 8 || password.length > 128) return reply({ error: 'Use 8 to 128 characters for your password.' }, 400);
   const recoveryCode = newRecoveryCode();
   let id;
   try {
@@ -122,7 +122,7 @@ async function signup(request, env) {
       .bind(username, await hashPassword(password), await tokenHash(normalizeCode(recoveryCode)), now()).first();
     id = row.id;
   } catch {
-    return reply({ error: 'That username is taken.' }, 409);
+    return reply({ error: 'That username is taken. Try another one.' }, 409);
   }
   const token = await startSession(env, id);
   return reply({ user: { username }, recoveryCode }, 201, { 'Set-Cookie': sessionCookie(request, token, SESSION_SECS) });
@@ -133,7 +133,7 @@ async function login(request, env) {
   if (await limited(env, `login:ip:${ip(request)}`, 20, 900) || await limited(env, `login:user:${username}`, 8, 900)) return tooMany();
   const row = USERNAME.test(username) ? await env.DB.prepare('SELECT id, pw_hash FROM users WHERE username = ?').bind(username).first() : null;
   const ok = await checkPassword(password.slice(0, 128), row?.pw_hash ?? DUMMY);
-  if (!row || !ok) return reply({ error: 'Wrong username or password.' }, 401);
+  if (!row || !ok) return reply({ error: "That username and password don't match. Check them and try again." }, 401);
   const token = await startSession(env, row.id);
   return reply({ user: { username } }, 200, { 'Set-Cookie': sessionCookie(request, token, SESSION_SECS) });
 }
@@ -149,7 +149,7 @@ async function newCode(request, user, env) {
   const { password } = credentials(await readJson(request));
   if (await limited(env, `code:${user.id}`, 8, 900)) return tooMany();
   const row = await env.DB.prepare('SELECT pw_hash FROM users WHERE id = ?').bind(user.id).first();
-  if (!await checkPassword(password.slice(0, 128), row.pw_hash)) return reply({ error: 'Wrong password.' }, 401);
+  if (!await checkPassword(password.slice(0, 128), row.pw_hash)) return reply({ error: "That password doesn't match this account. Try again." }, 401);
   const recoveryCode = newRecoveryCode();
   await env.DB.prepare('UPDATE users SET recovery_hash = ? WHERE id = ?').bind(await tokenHash(normalizeCode(recoveryCode)), user.id).run();
   return reply({ recoveryCode });
@@ -159,14 +159,14 @@ async function reset(request, env) {
   const body = await readJson(request);
   const { username, password } = credentials(body);
   if (await limited(env, `reset:ip:${ip(request)}`, 10, 3600) || await limited(env, `reset:user:${username}`, 5, 3600)) return tooMany();
-  if (password.length < 8 || password.length > 128) return reply({ error: 'Password: 8 to 128 characters.' }, 400);
+  if (password.length < 8 || password.length > 128) return reply({ error: 'Use 8 to 128 characters for your password.' }, 400);
   const row = USERNAME.test(username) ? await env.DB.prepare('SELECT id, recovery_hash FROM users WHERE username = ?').bind(username).first() : null;
   const given = await tokenHash(normalizeCode(body?.code));
   // Compare against a dummy when the user or code is missing so every failure costs the same.
   const want = row?.recovery_hash ?? '0'.repeat(64);
   let diff = given.length ^ want.length;
   for (let i = 0; i < given.length; i += 1) diff |= given.charCodeAt(i) ^ want.charCodeAt(i);
-  if (!row?.recovery_hash || diff !== 0) return reply({ error: 'Wrong username or recovery code.' }, 401);
+  if (!row?.recovery_hash || diff !== 0) return reply({ error: "That username and recovery code don't match. Check them and try again." }, 401);
   // New password and a fresh code (the old one is spent), every old session signed out.
   const recoveryCode = newRecoveryCode();
   await env.DB.batch([

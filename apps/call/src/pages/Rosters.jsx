@@ -36,7 +36,7 @@ export default function Rosters() {
     {data && <>
       <RosterSource sources={data.sources} now={data.generatedAt} />
       {data.teams.length === 0 ? <p className="note">No teams yet. Rosters appear after the first complete read of Riot's contract database.</p> : <>
-        <input className="roster-search" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Team or tag" aria-label="Search teams" />
+        <input className="roster-search" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="For example, Sentinels or SEN" aria-label="Search teams" />
         {!q && <div className="tier-switch roster-leagues" role="group" aria-label="League" style={{ '--n': leagues.length }}>
           {leagues.map(l => <button key={l.id} type="button" className={league === l.id ? 'primary' : undefined} aria-pressed={league === l.id}
             onClick={() => setParams(l.id === 'AMERICAS' ? {} : { league: l.id }, { replace: true })}>{l.label}</button>)}

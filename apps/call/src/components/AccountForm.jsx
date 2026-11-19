@@ -15,7 +15,7 @@ function RecoveryCode({ code, onDone }) {
   const copy = () => navigator.clipboard?.writeText(code).then(() => setCopied(true), () => {});
   return (
     <div className="account">
-      <Head title="Save your recovery code">If you forget your password, this is the <strong>only</strong> way back into your account. It is shown once.</Head>
+      <Head title="Save your recovery code">This code is the only way back into your account if you forget your password. We show it once, so save it now.</Head>
       <p className="code" aria-label="Recovery code">{code}</p>
       <button className="secondary" onClick={copy}>{copied ? 'Copied' : 'Copy code'}</button>
       <button className="primary" onClick={() => { account.ackRecoveryCode(); onDone(); }}>I saved it</button>
@@ -66,7 +66,7 @@ export default function AccountForm({ onDone }) {
       <label>Password<input name="password" type="password" autoComplete={signingUp ? 'new-password' : 'current-password'} required minLength={signingUp ? 8 : 1} maxLength={128} /></label>
       {error}
       <button className="primary" disabled={busy}>{signingUp ? 'Create account' : 'Sign in'}</button>
-      <button type="button" className="ghost" onClick={() => go(signingUp ? 'login' : 'signup')}>{signingUp ? 'Have an account? Sign in' : 'New here? Create an account'}</button>
+      <button type="button" className="ghost" onClick={() => go(signingUp ? 'login' : 'signup')}>{signingUp ? 'Have an account? Sign in' : 'New here? Create account'}</button>
       {!signingUp && <button type="button" className="ghost" onClick={() => go('forgot')}>Forgot password?</button>}
     </form>
   );

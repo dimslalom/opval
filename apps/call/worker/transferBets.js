@@ -26,12 +26,12 @@ async function list(db, user, t) {
 
 async function place(db, user, body, t) {
   const deadline = nextLock(t);
-  if (!deadline) return reply({ error: 'No roster lock is scheduled yet' }, 409);
+  if (!deadline) return reply({ error: 'Guesses open once the next roster lock date is set.' }, 409);
   const stake = body?.stake;
-  if (!Number.isInteger(stake) || stake < TRANSFER.minStake || stake > TRANSFER.maxStake) return reply({ error: `Stake ${TRANSFER.minStake} to ${TRANSFER.maxStake} credits` }, 400);
+  if (!Number.isInteger(stake) || stake < TRANSFER.minStake || stake > TRANSFER.maxStake) return reply({ error: `Stake between ${TRANSFER.minStake} and ${TRANSFER.maxStake} credits.` }, 400);
   const raw = Array.isArray(body?.moves) ? body.moves : [];
-  if (!raw.length || raw.length > TRANSFER.maxMoves) return reply({ error: `Make 1 to ${TRANSFER.maxMoves} moves` }, 400);
-  if (new Set(raw.map(m => m?.out)).size !== raw.length) return reply({ error: 'One move per player' }, 400);
+  if (!raw.length || raw.length > TRANSFER.maxMoves) return reply({ error: `Guess 1 to ${TRANSFER.maxMoves} moves.` }, 400);
+  if (new Set(raw.map(m => m?.out)).size !== raw.length) return reply({ error: 'Each player can have only one move.' }, 400);
 
   const contracts = (await db.prepare('SELECT identity_key AS key,player,team,league FROM roster_contracts').all()).results;
   const byKey = new Map(contracts.map(c => [c.key, c]));
@@ -39,15 +39,15 @@ async function place(db, user, body, t) {
   const moves = [];
   for (const m of raw) {
     const out = byKey.get(m?.out);
-    if (!out) return reply({ error: 'Pick players who are on a team now' }, 400);
+    if (!out) return reply({ error: 'Pick players who are on this team now.' }, 400);
     const incoming = m.in != null ? norm(m.in) : null, to = m.to != null ? norm(m.to) : null;
-    if (Boolean(incoming) === Boolean(to)) return reply({ error: 'Each move needs a replacement or a new team' }, 400);
+    if (Boolean(incoming) === Boolean(to)) return reply({ error: 'Each move needs a replacement or a new team.' }, 400);
     if (incoming) {
-      if (incoming.length > 40) return reply({ error: 'Player name is too long' }, 400);
-      if (byKey.get(identityOf(incoming, out.league))?.team === out.team) return reply({ error: `${incoming} is already on ${out.team}` }, 400);
+      if (incoming.length > 40) return reply({ error: 'That player name is too long.' }, 400);
+      if (byKey.get(identityOf(incoming, out.league))?.team === out.team) return reply({ error: `${incoming} is already on ${out.team}.` }, 400);
       moves.push({ out, in: incoming });
     } else {
-      if (!leagueOf.has(to) || to === out.team) return reply({ error: 'Pick another team on Riot GCD' }, 400);
+      if (!leagueOf.has(to) || to === out.team) return reply({ error: "Pick a team listed in Riot's contract database." }, 400);
       moves.push({ out, to: { team: to, league: leagueOf.get(to) } });
     }
   }
@@ -67,7 +67,7 @@ async function place(db, user, body, t) {
       .bind(id, user.id, moves[0].out.team, JSON.stringify(legs), stake, t, deadline, user.id, entryKey),
   ]);
   const row = await db.prepare('SELECT * FROM transfer_bets WHERE id=?').bind(id).first();
-  if (!row) return reply({ error: 'Not enough credits' }, 402);
+  if (!row) return reply({ error: "You don't have enough credits for this." }, 402);
   const fresh = await db.prepare('SELECT balance FROM wallets WHERE user_id=?').bind(user.id).first();
   const bet = shape(row);
   return reply({ ok: true, bet: { ...bet, legs: scoreLegs(bet, []) }, balance: fresh.balance });

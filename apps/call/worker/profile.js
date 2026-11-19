@@ -8,7 +8,7 @@ const now = () => Math.floor(Date.now() / 1000);
 // an open call), and every roster guess. Nothing private: no credits, no session, no recovery state.
 export async function publicProfile(env, username, t = now()) {
   const user = await env.DB.prepare('SELECT id,username,created_at FROM users WHERE username=?').bind(String(username).toLowerCase()).first();
-  if (!user) return reply({ error: 'No such player' }, 404);
+  if (!user) return reply({ error: 'No player has this username.' }, 404);
   const save = await env.DB.prepare('SELECT state FROM saves WHERE user_id=?').bind(user.id).first();
   const state = save ? JSON.parse(save.state) : { collection: [], tracked: [], calls: {}, history: [] };
   const ids = Object.keys(state.calls ?? {}).map(Number).filter(Number.isSafeInteger);

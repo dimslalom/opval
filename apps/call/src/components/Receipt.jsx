@@ -5,7 +5,7 @@ import { colorsFor, logoFor, logoForName, tagForName } from '../lib/orgs';
 import { multiplierOf, payoutOf } from '../lib/transferBets';
 import { CALL } from '../../../../src/engine/collect/rules';
 
-const stamp = s => new Date(s * 1000).toLocaleString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const stamp = s => new Date(s * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const serial = id => String(id).replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase().padStart(8, '0');
 
 // Bars from the serial, so every receipt has its own (decorative, not scannable) barcode.

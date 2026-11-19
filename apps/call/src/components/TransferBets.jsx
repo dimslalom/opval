@@ -112,7 +112,7 @@ function useFitScale(ref, count) {
 
 // Contract end as a picture: a track of years from now, filled up to the year the deal ends.
 function ContractTrack({ player, team, end, thisYear, years = 4 }) {
-  const tip = end ? `${player}'s contract with ${team} ends with the ${end} season${end === thisYear ? ': free to move this offseason.' : '.'}` : 'Contract end not listed on Riot GCD';
+  const tip = end ? `${player}'s contract with ${team} ends with the ${end} season${end === thisYear ? ', so they can move this offseason.' : '.'}` : "Riot's contract database lists no end date.";
   return <span className="contract" data-ending={end === thisYear} tabIndex={0} data-tip={tip} aria-label={tip}>
     <IconContract size={15} stroke={2} aria-hidden="true" />
     <span className="contract-track" aria-hidden="true">{Array.from({ length: years }, (_, i) => <i key={i} data-on={end != null && thisYear + i <= end} data-end={thisYear + i === end} />)}</span>
@@ -150,7 +150,7 @@ export function TeamSheet({ team, contracts, guessing, onClose, onPlaced, signed
       const res = await fetch('/api/transfer-bets', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stake, moves: list.map(([out, m]) => (m.in ? { out, in: m.in } : { out, to: m.to })) }) });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Could not lock in the guess');
+      if (!res.ok) throw new Error(data.error ?? "Your guess wasn't saved. Try again.");
       window.dispatchEvent(new Event('opval-wallet-changed'));
       setPlaced(data.bet);
       onPlaced(data);
@@ -184,8 +184,8 @@ export function TeamSheet({ team, contracts, guessing, onClose, onPlaced, signed
           {STAKES.map(s => <button key={s} type="button" className={stake === s ? 'primary' : undefined} aria-pressed={stake === s} disabled={signedIn && s > balance} onClick={() => setStake(s)}>{s}</button>)}
         </div>
         <div className="guess-win" tabIndex={0} data-tip={legs
-          ? `${legs} calls: each player out, each player in. All ${legs} right pays ${multiplier}x your stake; each right call pays its share.`
-          : 'Tap a card to guess who replaces them or where they go.'}>
+          ? `Each move is two calls: who leaves and who comes in. Get all ${legs} right to win ${multiplier}x your stake. Each right call also pays its share.`
+          : 'Tap a player to guess who replaces them or where they go.'}>
           <small>{legs ? `${multiplier}x` : 'Payout'}</small><b>{legs ? payoutOf(stake, legs, legs) : 0}</b>
         </div>
         <button type="button" className="primary big" disabled={!canLock} onClick={lock}>{!signedIn ? 'Sign in to guess' : short ? `${balance} CR left` : busy ? 'Locking' : 'Lock in'}</button>

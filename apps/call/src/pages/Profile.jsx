@@ -10,7 +10,7 @@ import { useGame } from '../lib/gameContext';
 import { logoFor } from '../lib/orgs';
 import { playHome } from '../lib/playNavigation';
 
-const since = s => new Date(s * 1000).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+const since = s => new Date(s * 1000).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 
 // Anyone's profile, shareable by link: their Tracked hand, every card they own, their roster
 // guesses and their match calls once those matches started.

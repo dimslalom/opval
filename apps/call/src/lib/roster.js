@@ -18,14 +18,14 @@ export const personPath = m => `/players/${m.personId ?? m.id}/${slug(m.handle)}
 export function windowText(w) {
   if (!w) return null;
   if (w.teamExit) return `Last listed ${day(w.after)}, when the team left the source`;
-  if (w.after == null) return `First listed ${day(w.by)}; earlier is not known`;
+  if (w.after == null) return `First listed ${day(w.by)}. Nothing earlier is known`;
   return day(w.after) === day(w.by) ? day(w.by) : `${day(w.after)} to ${day(w.by)}`;
 }
 
 export const PRESENCE = {
   present: 'Listed on this date',
-  possible: 'Changed around this date; the exact day is between two reads',
-  unknown: 'Before this source was tracked; not known',
+  possible: 'Changed around this date. The exact day falls between two reads',
+  unknown: 'Not known. This date is before the source was tracked',
   absent: 'Not listed on this date',
 };
 

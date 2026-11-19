@@ -110,7 +110,7 @@ export default function Today() {
       </div>
 
       {matches == null && <p className="note">Loading the schedule</p>}
-      {feedFailed && <p className="note" role="alert">The schedule is unavailable right now. <button className="link" onClick={() => { setMatches(null); setFeedFailed(false); setReloadKey(key => key + 1); }}>Try again</button></p>}
+      {feedFailed && <p className="note" role="alert">The schedule isn't available right now. <button className="link" onClick={() => { setMatches(null); setFeedFailed(false); setReloadKey(key => key + 1); }}>Try again</button></p>}
       {matches != null && !feedFailed && dayMatches.length === 0 && (
         <p className="note">
           No matches on this day.{' '}

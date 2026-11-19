@@ -30,7 +30,7 @@ function Side({ name, label, side: { id, on, shown, error }, params, setParams, 
     </div>
     {error && <p className="error" role="alert">{error}</p>}
     {id && !shown && !error && <p className="loading">Loading</p>}
-    {shown && endOf(on) < Math.min(...shown.sources.map(s => s.trackedSince ?? Infinity)) && <p className="note">Before tracking began: not known.</p>}
+    {shown && endOf(on) < Math.min(...shown.sources.map(s => s.trackedSince ?? Infinity)) && <p className="note">Not known. This date is before tracking began.</p>}
   </div>;
 }
 
@@ -66,7 +66,7 @@ export default function Compare() {
     {ready && <div className="compare-diff">
       {groups.map(([heading, list]) => <section key={heading} className="roster-block">
         <h2 className="sum"><b>{list.length}</b><span>{heading}</span></h2>
-        {list.length === 0 ? <p className="note">Nobody.</p> : <ul className="team-list compare-list">
+        {list.length === 0 ? <p className="note">No one.</p> : <ul className="team-list compare-list">
           {list.map(({ m, a: left, b: right }) => <li key={m.personId}>
             <Link className="change-who" to={personPath(m)}><PersonPhoto handle={m.handle} team={(left ?? right).team} size="chip" />{m.handle}</Link>
             <span className="change-role">{m.kind === 'player' ? '' : title((left ?? right).role)}</span>
