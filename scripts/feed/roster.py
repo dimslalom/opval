@@ -20,6 +20,8 @@ GCD_SHEETS = {'AMERICAS': 1856086064, 'CN': 1474170664, 'EMEA': 0, 'PACIFIC': 18
 # Rosters shrink for real in the off-season (Americas hit 27 in Nov 2026), while a markup or
 # label change drops nearly every row. This floor only has to tell those two apart.
 GCD_MIN_ROWS = 10
+# Matches the 500-row cap in ingestTransfers (worker/feed/roster.js).
+TRANSFER_BATCH = 500
 BASE = os.environ.get('FEED_BASE_URL', 'http://127.0.0.1:8787')
 TOKEN = os.environ.get('FEED_INGEST_TOKEN', 'local-dev')
 
@@ -162,7 +164,10 @@ def main():
         try:
             resp = request_with_retry(client, 'GET', VLR)
             transfers = parse_vlr(resp.text)
-            post('transfers', transfers, run_id)
+            # The Worker rejects more than TRANSFER_BATCH rows per request; off-season churn on
+            # the VLR log passes that (524 rows in Nov 2026). Inserts are idempotent, so batch.
+            for i in range(0, len(transfers), TRANSFER_BATCH):
+                post('transfers', transfers[i:i + TRANSFER_BATCH], run_id)
         except Exception as error:
             failures.append(f'transfers: {error}')
         try:
