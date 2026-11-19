@@ -1514,3 +1514,18 @@ a.team-handle { color: var(--ink); text-decoration: none; }
 /* Manual lineup entries: same tile, dashed edge, so they read as not-yet-registered. */
 .lineup li[data-manual] .lineup-tile { border: 1px dashed var(--line-bracket); text-decoration: none; }
 .lineup li[data-manual='reported'] .lineup-flag { color: var(--muted); }
+
+/* Proactive layer: since-last-visit, new-data bar, one suggestion, due contracts, linked highlight. */
+.team-fresh { flex-basis: 100%; order: 4; display: flex; align-items: center; gap: 10px; margin: 0; color: var(--ink); font-size: var(--fs-label); }
+.team-fresh .ghost { min-height: 32px; color: var(--ink); }
+.since-visit .sum span { color: var(--ink); }
+.suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin-top: 18px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: var(--fs-label); }
+.suggest a { color: var(--ink); text-underline-offset: 3px; margin-right: auto; }
+.suggest .ghost { min-height: 32px; font-size: var(--fs-micro); }
+.lineup-common[data-due='true'] { color: var(--gold); }
+.lineup-due { margin-left: 10px; padding: 2px 6px; border: 1px solid currentColor; border-radius: 3px; }
+.lineup-tile small[data-due='true'] { color: var(--gold); }
+.lineup li[data-hot='true'] .lineup-tile { border-color: var(--ink); }
+.tl-row[data-hot='true'] .tl-label { color: var(--accent); }
+.tl-row[data-hot='true'] .tl-track { background: rgba(255, 255, 255, 0.04); }
+.change-list li[data-hot='true'] { background: rgba(255, 255, 255, 0.04); }
