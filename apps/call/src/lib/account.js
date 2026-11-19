@@ -4,8 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 // copy of the save is adopted once (server wins), then every change is uploaded after a pause.
 // Each upload carries the save version it was based on; if another device got there first the
 // server refuses, we take its copy and say so (no merging).
+// The public pages keep their own session (lib/session.jsx); both announce sign-in and sign-out
+// with AUTH_EVENT so the other one catches up.
+export const AUTH_EVENT = 'opval-auth-changed';
+const announce = () => window.dispatchEvent(new Event(AUTH_EVENT));
 
-async function api(method, path, body) {
+export async function api(method, path, body) {
   const res = await fetch(path, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -28,7 +32,10 @@ export function useAccount({ state, setSaved }) {
   const version = useRef(0); // its version
 
   useEffect(() => {
-    api('GET', '/api/auth/me').then(d => setUser(d.user), () => {}).finally(() => setChecked(true));
+    const me = () => api('GET', '/api/auth/me').then(d => setUser(u => (u?.username === d.user?.username ? u : d.user)), () => {}).finally(() => setChecked(true));
+    me();
+    window.addEventListener(AUTH_EVENT, me);
+    return () => window.removeEventListener(AUTH_EVENT, me);
   }, []);
 
   const adopt = useCallback(remote => {
@@ -80,6 +87,7 @@ export function useAccount({ state, setSaved }) {
     const d = await api('POST', path, fields);
     setUser(d.user);
     if (d.recoveryCode) setRecoveryCode(d.recoveryCode);
+    announce();
   }, []);
   const perform = useCallback(async (op, fields = {}) => {
     try {
@@ -95,6 +103,7 @@ export function useAccount({ state, setSaved }) {
     await api('POST', '/api/auth/logout', {}).catch(() => {});
     setUser(null);
     setRecoveryCode(null);
+    announce();
   }, []);
 
   return {

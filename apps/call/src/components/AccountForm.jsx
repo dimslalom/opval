@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGame } from '../lib/gameContext';
+import { useAccountApi } from '../lib/sessionContext';
 
 // The title of a signed-out screen, with an optional line under it that belongs to the title.
 const Head = ({ title, children }) => (
@@ -10,7 +10,7 @@ const Head = ({ title, children }) => (
 );
 
 function RecoveryCode({ code, onDone }) {
-  const { account } = useGame();
+  const account = useAccountApi();
   const [copied, setCopied] = useState(false);
   const copy = () => navigator.clipboard?.writeText(code).then(() => setCopied(true), () => {});
   return (
@@ -24,7 +24,7 @@ function RecoveryCode({ code, onDone }) {
 }
 
 export default function AccountForm({ onDone }) {
-  const { account } = useGame();
+  const account = useAccountApi();
   const { user, login, signup, reset } = account;
   const [mode, setMode] = useState('login'); // login | signup | forgot
   const [busy, setBusy] = useState(false);
@@ -74,7 +74,7 @@ export default function AccountForm({ onDone }) {
 
 // Signed in: the account's own controls. They live on your profile page, so there is one place for "you".
 export function AccountSettings({ onDone, onSignOut = onDone }) {
-  const { account } = useGame();
+  const account = useAccountApi();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const makeCode = async e => {

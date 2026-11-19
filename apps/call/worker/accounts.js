@@ -9,6 +9,7 @@ import { gameAction } from './gameActions.js';
 import { calibrationStatus } from './calibration.js';
 import { handleTransferBets } from './transferBets.js';
 import { publicProfile } from './profile.js';
+import { handleWorkspaces, readShare, LIMITS as WORKSPACE_LIMITS } from './rosterWorkspaces.js';
 
 const COOKIE = 'opval_session';
 const SESSION_SECS = 60 * 60 * 24 * 30;
@@ -274,6 +275,19 @@ export async function handleAccounts(request, env, url) {
   if (path === '/api/auth/me' && method === 'GET') {
     const user = await currentUser(request, env);
     return reply({ user: user ? { username: user.username } : null });
+  }
+
+  if (path.startsWith('/api/shares/') && method === 'GET') return readShare(env, path.slice('/api/shares/'.length));
+
+  if (path === '/api/workspaces' || path.startsWith('/api/workspaces/')) {
+    const user = await currentUser(request, env);
+    if (!user) return reply({ error: 'Sign in to save lineups.' }, 401, { 'Cache-Control': 'private, no-store' });
+    let body = null;
+    if (method === 'POST' || method === 'PUT') {
+      body = await readJson(request, WORKSPACE_LIMITS.payloadBytes + 1024);
+      if (!body && !path.endsWith('/shares')) return reply({ error: 'Send the lineup as JSON under 64 KB.' }, 413);
+    }
+    return handleWorkspaces(user, env, method, path, body);
   }
 
   if (path === '/api/leaderboard' && method === 'GET') {

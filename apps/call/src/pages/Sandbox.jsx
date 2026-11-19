@@ -5,6 +5,8 @@ import PersonPhoto from '../components/PersonPhoto';
 import { teamPath, title } from '../lib/roster';
 import { STARTERS, blankDraft, checkLineup, diffFromBase } from '../lib/sandbox';
 import { loadDrafts, newId, saveDrafts } from '../lib/drafts';
+import { useSession } from '../lib/sessionContext';
+import { createShare, draftFrom, isDirty, saveDraft } from '../lib/workspaces';
 
 // A team's lineup as the team page shows it today: Riot's listing with manual entries applied.
 function lineupFromTeam(data) {
@@ -38,6 +40,57 @@ function Search({ onPick, label }) {
         <PersonPhoto handle={p.handle} team={p.now?.team} size="chip" /><b>{p.handle}</b><small>{p.now ? p.now.team : 'Not on a tracked team'}</small>
       </button></li>)}
     </ul>}
+  </div>;
+}
+
+// Saving to the account and making a read-only link. Signed out, drafts stay on this device.
+// A save made from an older copy than the account holds is refused; the person then picks which
+// copy to keep instead of one silently replacing the other.
+function CloudBar({ draft, onSaved }) {
+  const session = useSession();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null); // { error } | { conflict: workspace } | { link }
+  const [copied, setCopied] = useState(false);
+  if (!session?.user) return <p className="note sandbox-cloud">Sign in to keep lineups on your account and share them as a link.</p>;
+
+  const run = fn => async () => {
+    setBusy(true); setMsg(null); setCopied(false);
+    try { await fn(); } catch (e) {
+      if (e.status === 409 && e.data?.current) setMsg({ conflict: e.data.current });
+      else setMsg({ error: e.message });
+    }
+    setBusy(false);
+  };
+  const save = run(async () => onSaved(await saveDraft(draft)));
+  const share = run(async () => {
+    const saved = isDirty(draft) ? await saveDraft(draft) : draft;
+    if (saved !== draft) onSaved(saved);
+    const { share: made } = await createShare(saved.cloud.id);
+    setMsg({ link: `${window.location.origin}${made.path}` });
+  });
+  const keepTheirs = () => { onSaved(draftFrom(msg.conflict, draft.id), true); setMsg(null); };
+  const keepMineAsCopy = run(async () => onSaved(await saveDraft({ ...draft, cloud: undefined, name: `${draft.name} (copy)` }), true));
+  const copy = () => navigator.clipboard?.writeText(msg.link).then(() => setCopied(true), () => {});
+
+  return <div className="sandbox-cloud">
+    <div className="sandbox-actions">
+      <button type="button" className="secondary" onClick={save} disabled={busy || !isDirty(draft)}>{!draft.cloud ? 'Save to account' : isDirty(draft) ? 'Save changes' : 'Saved'}</button>
+      <button type="button" className="secondary" onClick={share} disabled={busy}>Create share link</button>
+      <Link className="ghost" to="/saved">Saved lineups</Link>
+    </div>
+    {msg?.error && <p className="error" role="alert">{msg.error}</p>}
+    {msg?.conflict && <div className="sandbox-conflict" role="alert">
+      <p>This lineup was saved from another device after you opened it. Which copy do you want?</p>
+      <div className="sandbox-actions">
+        <button type="button" className="secondary" onClick={keepTheirs}>Load the saved copy</button>
+        <button type="button" className="secondary" onClick={keepMineAsCopy} disabled={busy}>Keep mine as a new lineup</button>
+      </div>
+    </div>}
+    {msg?.link && <div className="sandbox-link">
+      <input readOnly value={msg.link} aria-label="Share link" onFocus={e => e.target.select()} />
+      <button type="button" className="secondary" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button>
+      <p className="note">Anyone with this link sees this version, read only. Later edits stay private. Revoke it from Saved lineups.</p>
+    </div>}
   </div>;
 }
 
@@ -96,7 +149,13 @@ export default function Sandbox() {
     : { ...d, [zone]: d[zone].filter((_, j) => j !== i) }));
   const undo = () => { const prev = history.past.at(-1); if (!prev) return; setHistory(h => ({ past: h.past.slice(0, -1), future: [draft, ...h.future] })); replace(prev); };
   const redo = () => { const next = history.future[0]; if (!next) return; setHistory(h => ({ past: [...h.past, draft], future: h.future.slice(1) })); replace(next); };
-  const duplicate = () => { const copy = { ...draft, id: newId(), name: `${draft.name} (copy)` }; store([copy, ...drafts]); open(copy.id); };
+  // Saves land after an await, so they write into what is stored now, not this render's list.
+  // An edit made while the save was in flight is kept (and shows as unsaved); `whole` replaces it.
+  const saved = (next, whole = false) => {
+    const list = loadDrafts().map(d => (d.id !== next.id ? d : !whole && d.updatedAt > next.cloud.savedAt ? { ...d, cloud: next.cloud } : next));
+    setDrafts(list); saveDrafts(list);
+  };
+  const duplicate = () => { const copy = { ...draft, id: newId(), name: `${draft.name} (copy)`, cloud: undefined }; store([copy, ...drafts]); open(copy.id); };
   const remove = () => { store(drafts.filter(d => d.id !== draft.id)); setParams({}); };
   const blank = () => { const d = blankDraft(newId()); store([d, ...drafts]); open(d.id); };
 
@@ -120,7 +179,7 @@ export default function Sandbox() {
       {drafts.map(d => <button key={d.id} type="button" className={d.id === draft?.id ? 'primary' : 'secondary'} onClick={() => open(d.id)}>{d.name}</button>)}
       <button type="button" className="ghost" onClick={blank}>New blank lineup</button>
     </div>
-    {!draft && !from && <p className="note">Start from a team's page with "Open in sandbox", or start a blank lineup. Drafts stay on this device.</p>}
+    {!draft && !from && <p className="note">Start from a team's page with "Open in sandbox", or start a blank lineup. Drafts stay on this device until you save them to your account.</p>}
 
     {draft && <>
       <div className="sandbox-head">
@@ -130,8 +189,9 @@ export default function Sandbox() {
           <button type="button" className="secondary" onClick={undo} disabled={!history.past.length}>Undo</button>
           <button type="button" className="secondary" onClick={redo} disabled={!history.future.length}>Redo</button>
           <button type="button" className="secondary" onClick={duplicate}>Duplicate</button>
-          <button type="button" className="ghost" onClick={remove}>Delete</button>
+          <button type="button" className="ghost" onClick={remove}>{draft.cloud ? 'Remove from this device' : 'Delete'}</button>
         </div>
+        <CloudBar key={draft.id} draft={draft} onSaved={saved} />
       </div>
 
       <section className="roster-block">

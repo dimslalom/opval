@@ -18,6 +18,8 @@ const Team = lazy(() => import('./pages/Team'));
 const Player = lazy(() => import('./pages/Player'));
 const Compare = lazy(() => import('./pages/Compare'));
 const Sandbox = lazy(() => import('./pages/Sandbox'));
+const Saved = lazy(() => import('./pages/Saved'));
+const SharedLineup = lazy(() => import('./pages/SharedLineup'));
 
 // PlayerCard (shared with the old site) animates with the `m` namespace under a
 // strict LazyMotion, so the same providers wrap this app.
@@ -56,6 +58,8 @@ export default function App() {
                   <Route path="players/:personId/:slug?" element={page(<Player />)} />
                   <Route path="compare" element={page(<Compare />)} />
                   <Route path="sandbox" element={page(<Sandbox />)} />
+                  <Route path="saved" element={page(<Saved />)} />
+                  <Route path="s/:token" element={page(<SharedLineup />)} />
                   <Route path="legal" element={page(<Legal />)} />
                 </Route>
                 <Route path="play" element={<LegacyPlay />} />
