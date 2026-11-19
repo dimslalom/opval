@@ -129,7 +129,7 @@ export default function Roster() {
 
     {team && <TeamSheet key={team} team={team} contracts={contracts} guessing={guessing} signedIn={Boolean(account.user)} username={account.user?.username}
       onClose={() => setTeam(null)}
-      onPlaced={({ bet, balance }) => setGuessing(g => ({ ...g, balance, bets: [bet, ...(g?.bets ?? [])] }))} />}
+      onPlaced={({ bet }) => setGuessing(g => ({ ...g, bets: [bet, ...(g?.bets ?? [])] }))} />}
 
     <Sheet open={Boolean(receipt)} onClose={() => setReceipt(null)} title="Receipt">
       {receipt && <Receipt guess={receipt} username={account.user?.username} />}

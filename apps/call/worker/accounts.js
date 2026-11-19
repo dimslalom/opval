@@ -195,7 +195,7 @@ async function getSave(user, env) {
 // The column comes only from this allowlist. A zero-score account stays unranked until
 // it reveals a result, while the caller still gets its own score in the response.
 async function leaderboard(user, env, url) {
-  const columns = { overall: 'overall_points', calls: 'call_points', cards: 'card_points' };
+  const columns = { overall: 'overall_points', calls: 'call_points', cards: 'card_points', transfers: 'guess_points' };
   const board = url.searchParams.get('board') ?? 'overall';
   const column = columns[board];
   if (!column) return reply({ error: 'Unknown leaderboard.' }, 400);
@@ -208,19 +208,23 @@ async function leaderboard(user, env, url) {
         CASE WHEN json_valid(h.value) AND json_type(h.value, '$.callPoints') IN ('integer', 'real')
           THEN MAX(0, CAST(json_extract(h.value, '$.callPoints') AS INTEGER)) ELSE 0 END AS call_points,
         CASE WHEN json_valid(h.value) AND json_type(h.value, '$.trackedPoints') IN ('integer', 'real')
-          THEN MAX(0, CAST(json_extract(h.value, '$.trackedPoints') AS INTEGER)) ELSE 0 END AS card_points
+          THEN MAX(0, CAST(json_extract(h.value, '$.trackedPoints') AS INTEGER)) ELSE 0 END AS card_points,
+        0 AS guess_points
       FROM saves s, json_each(s.state, '$.history') h
       UNION ALL
-      SELECT x.user_id, x.call_points, x.tracked_points
+      SELECT x.user_id, x.call_points, x.tracked_points, 0
       FROM call_settlements x JOIN saves s ON s.user_id = x.user_id
       WHERE json_type(s.state, '$.revealed."' || x.match_id || '"') IS NULL
+      UNION ALL
+      -- Settled points-only transfer guesses (staked ones paid credits, not points).
+      SELECT user_id, 0, 0, points FROM transfer_bets WHERE points IS NOT NULL
     ), scores AS (
-      SELECT p.user_id, u.username, SUM(p.call_points) AS call_points, SUM(p.card_points) AS card_points
+      SELECT p.user_id, u.username, SUM(p.call_points) AS call_points, SUM(p.card_points) AS card_points, SUM(p.guess_points) AS guess_points
       FROM points p JOIN users u ON u.id = p.user_id
       GROUP BY p.user_id
     ), totals AS (
-      SELECT user_id, username, call_points, card_points,
-        call_points + card_points AS overall_points FROM scores
+      SELECT user_id, username, call_points, card_points, guess_points,
+        call_points + card_points + guess_points AS overall_points FROM scores
     ), ranked AS (
       SELECT user_id, username, ${column} AS points,
         RANK() OVER (ORDER BY ${column} DESC) AS rank,

@@ -43,7 +43,7 @@ export default function HowTo({ onDone }) {
     <section className="guide-row">
       <div className="guide-copy">
         <h3>Guess roster moves</h3>
-        <p>In Rosters, tap a team, then a player: who replaces them, or where they go. Stake credits. Every move Riot confirms before the roster lock pays.</p>
+        <p>In Transfers, tap a team, then a player: who replaces them, or where they go. Nothing is staked. Every move Riot confirms before the roster lock scores 10 points.</p>
       </div>
       <div className="guide-swap guide-move" role="img" aria-label="Example guess: xavi8k replaces Monyet on RRQ">
         <span className="guide-move-out"><small>Out</small><Player card={monyet} /></span>

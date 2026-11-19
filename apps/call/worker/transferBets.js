@@ -1,5 +1,5 @@
-import { TRANSFER, nextLock, identityOf, legsFor, scoreLegs, payoutOf } from '../src/lib/transferBets.js';
-import { ensureWallet, postWallet } from './wallet.js';
+import { TRANSFER, nextLock, identityOf, legsFor, scoreLegs, payoutOf, pointsOf } from '../src/lib/transferBets.js';
+import { postWallet } from './wallet.js';
 
 const now = () => Math.floor(Date.now() / 1000);
 const reply = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
@@ -10,7 +10,7 @@ export async function eventsBetween(db, from, to) {
     FROM roster_events WHERE first_seen_at>=? AND first_seen_at<? ORDER BY first_seen_at`).bind(from, to).all()).results;
 }
 const shape = r => ({ id: r.id, team: r.team, legs: JSON.parse(r.legs), stake: r.stake,
-  placedAt: r.placed_at, deadline: r.deadline, hits: r.hits, payout: r.payout, settledAt: r.settled_at });
+  placedAt: r.placed_at, deadline: r.deadline, hits: r.hits, payout: r.payout, points: r.points, settledAt: r.settled_at });
 
 // A user's guesses with each leg marked hit or not so far. Shared by the owner's list and the public profile.
 export async function guessesOf(db, userId, t = now()) {
@@ -20,15 +20,12 @@ export async function guessesOf(db, userId, t = now()) {
 }
 
 async function list(db, user, t) {
-  const wallet = await ensureWallet(db, user.id, t);
-  return reply({ lock: nextLock(t), rules: TRANSFER, balance: wallet.balance, bets: await guessesOf(db, user.id, t) });
+  return reply({ lock: nextLock(t), rules: TRANSFER, bets: await guessesOf(db, user.id, t) });
 }
 
 async function place(db, user, body, t) {
   const deadline = nextLock(t);
   if (!deadline) return reply({ error: 'Guesses open once the next roster lock date is set.' }, 409);
-  const stake = body?.stake;
-  if (!Number.isInteger(stake) || stake < TRANSFER.minStake || stake > TRANSFER.maxStake) return reply({ error: `Stake between ${TRANSFER.minStake} and ${TRANSFER.maxStake} credits.` }, 400);
   const raw = Array.isArray(body?.moves) ? body.moves : [];
   if (!raw.length || raw.length > TRANSFER.maxMoves) return reply({ error: `Guess 1 to ${TRANSFER.maxMoves} moves.` }, 400);
   if (new Set(raw.map(m => m?.out)).size !== raw.length) return reply({ error: 'Each player can have only one move.' }, 400);
@@ -53,24 +50,12 @@ async function place(db, user, body, t) {
   }
   const legs = legsFor(moves);
 
+  // Points only: nothing is staked, so placing a guess touches no wallet.
   const id = crypto.randomUUID();
-  const entryKey = `transfer-bet:${id}`;
-  await ensureWallet(db, user.id, t);
-  // Same guarded ledger shape as paid bingo cards: the guess exists only if the debit landed.
-  await db.batch([
-    db.prepare(`INSERT INTO wallet_entries(user_id,entry_key,amount,balance_after,created_at)
-      SELECT user_id,?,-?,balance-?,? FROM wallets WHERE user_id=? AND balance>=?`).bind(entryKey, stake, stake, t, user.id, stake),
-    db.prepare(`UPDATE wallets SET balance=(SELECT balance_after FROM wallet_entries WHERE user_id=? AND entry_key=?)
-      WHERE user_id=? AND changes()=1`).bind(user.id, entryKey, user.id),
-    db.prepare(`INSERT INTO transfer_bets(id,user_id,team,legs,stake,placed_at,deadline)
-      SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM wallet_entries WHERE user_id=? AND entry_key=?)`)
-      .bind(id, user.id, moves[0].out.team, JSON.stringify(legs), stake, t, deadline, user.id, entryKey),
-  ]);
-  const row = await db.prepare('SELECT * FROM transfer_bets WHERE id=?').bind(id).first();
-  if (!row) return reply({ error: "You don't have enough credits for this." }, 402);
-  const fresh = await db.prepare('SELECT balance FROM wallets WHERE user_id=?').bind(user.id).first();
-  const bet = shape(row);
-  return reply({ ok: true, bet: { ...bet, legs: scoreLegs(bet, []) }, balance: fresh.balance });
+  await db.prepare('INSERT INTO transfer_bets(id,user_id,team,legs,stake,placed_at,deadline) VALUES(?,?,?,?,NULL,?,?)')
+    .bind(id, user.id, moves[0].out.team, JSON.stringify(legs), t, deadline).run();
+  const bet = shape(await db.prepare('SELECT * FROM transfer_bets WHERE id=?').bind(id).first());
+  return reply({ ok: true, bet: { ...bet, legs: scoreLegs(bet, []) } });
 }
 
 export function handleTransferBets(user, env, method, body, t = now()) {
@@ -87,6 +72,12 @@ export async function settleTransferBets(env, t = now()) {
     const checks = (await db.prepare('SELECT COUNT(*) AS n FROM roster_source_checks WHERE observed_at>=?').bind(g.deadline).first()).n;
     if (checks < 2) continue;
     const hits = scoreLegs(g, await eventsBetween(db, g.placedAt, g.deadline)).filter(l => l.hit).length;
+    if (g.stake == null) {
+      await db.prepare('UPDATE transfer_bets SET hits=?,points=?,settled_at=? WHERE id=? AND settled_at IS NULL').bind(hits, pointsOf(hits), t, g.id).run();
+      count++;
+      continue;
+    }
+    // A guess staked before points-only settles in credits, as placed.
     const payout = payoutOf(g.stake, g.legs.length, hits);
     if (payout > 0 && !(await postWallet(db, g.userId, `transfer-pay:${g.id}`, payout, t))) continue;
     await db.prepare('UPDATE transfer_bets SET hits=?,payout=?,settled_at=? WHERE id=? AND settled_at IS NULL').bind(hits, payout, t, g.id).run();
