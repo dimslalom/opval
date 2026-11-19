@@ -126,6 +126,18 @@ export async function handleRosterV2(db, url) {
     return reply({ generatedAt: now(), sources: await sources(db), teams });
   }
 
+  // Connections: everyone ever listed on this team, and every tracked team those people have been on,
+  // one row per person, team and kind with the span the reads listed them.
+  if ((match = path.match(/^\/api\/roster\/v2\/teams\/(\d+)\/graph$/))) {
+    const id = Number(match[1]);
+    const links = (await db.prepare(`SELECT m.person_id AS personId,p.handle,m.team_id AS teamId,t.name AS team,t.tag,t.league,m.kind,
+        MIN(m.start_before) AS first,MAX(m.last_seen_at) AS last,MAX(m.end_before IS NULL) AS open
+      FROM roster_memberships m JOIN roster_people p ON p.id=m.person_id JOIN roster_teams t ON t.id=m.team_id
+      WHERE m.person_id IN (SELECT person_id FROM roster_memberships WHERE team_id=?1)
+      GROUP BY m.person_id,m.team_id,m.kind ORDER BY m.person_id LIMIT 1000`).bind(id).all()).results;
+    return reply({ generatedAt: now(), teamId: id, links: links.map(l => ({ ...l, open: Boolean(l.open) })) });
+  }
+
   if ((match = path.match(/^\/api\/roster\/v2\/teams\/(\d+)$/))) {
     const id = Number(match[1]);
     const info = await db.prepare('SELECT id,name,tag,league FROM roster_teams WHERE id=?').bind(id).first();

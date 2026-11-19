@@ -295,3 +295,14 @@ test('person search finds handles by prefix first and says where each is listed 
   assert.equal(found[0].now.tag, 'E1');
   assert.deepEqual((await get(db, '/api/roster/v2/people?q=a')).people, []); // too short to search
 });
+
+test('a team graph links its people to every other team they were on', async () => {
+  const db = d1();
+  await run(db, base(), 'r1', 100);
+  await run(db, [...base().filter(r => r.player !== 'bravo'), row('bravo', 'E1')], 'r2', 200); // bravo moves A1 -> E1
+  const a1 = (await db.prepare("SELECT id FROM roster_teams WHERE tag='A1'").first()).id;
+  const links = (await get(db, `/api/roster/v2/teams/${a1}/graph`)).links;
+  const bravo = links.filter(l => l.handle === 'bravo').map(l => [l.tag, l.open]).sort();
+  assert.deepEqual(bravo, [['A1', false], ['E1', true]]);
+  assert.ok(!links.some(l => l.handle === 'echo')); // never on A1: not part of its graph
+});

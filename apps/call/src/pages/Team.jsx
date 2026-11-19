@@ -4,6 +4,7 @@ import { Crest } from '../components/Face';
 import RosterSource from '../components/RosterSource';
 import RosterTimeline from '../components/RosterTimeline';
 import RosterEvidence from '../components/RosterEvidence';
+import RosterGraph from '../components/RosterGraph';
 import PersonPhoto from '../components/PersonPhoto';
 import { rosterDay as day } from '../lib/time';
 import { DAY, endOf, isoDay, isoOf, title, useRoster, validIso, windowText } from '../lib/roster';
@@ -29,6 +30,7 @@ export default function Team() {
   const query = [on === today ? null : `at=${endOf(on)}`, rev ? `rev=${rev}` : null].filter(Boolean).join('&');
   const { data, error, loading } = useRoster(`/api/roster/v2/teams/${encodeURIComponent(teamId)}${query ? `?${query}` : ''}`);
   const [selectedId, setSelectedId] = useState(null);
+  const { data: graph } = useRoster(`/api/roster/v2/teams/${encodeURIComponent(teamId)}/graph`);
   // The person under the pointer or keyboard focus, highlighted in the lineup, timeline and changes at once.
   const [hot, setHot] = useState(null);
   const hover = id => ({ onMouseEnter: () => setHot(id), onMouseLeave: () => setHot(null), onFocus: () => setHot(id), onBlur: () => setHot(null) });
@@ -227,6 +229,11 @@ export default function Team() {
         <h2 className="sum"><span>Who was here when</span></h2>
         <RosterTimeline rows={rows} trackedSince={tracked} latestRead={shown.latestRead} reads={shown.reads} bands={bands} at={endOf(on)} selectedId={selectedId}
           onPickDate={t => setOn(isoOf(t))} onSelect={m => setSelectedId(m.id)} hotKey={hot} onHover={setHot} />
+      </section>}
+
+      {graph?.teamId === Number(teamId) && <section className="roster-block" aria-label="Connections">
+        <h2 className="sum"><span>Where this team's people also played</span></h2>
+        <RosterGraph teamId={Number(teamId)} links={graph.links} />
       </section>}
 
       <section className="roster-block">

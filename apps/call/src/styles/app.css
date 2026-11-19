@@ -1553,3 +1553,27 @@ a.team-handle { color: var(--ink); text-decoration: none; }
 .sandbox-checks li[data-level='error'] { color: var(--accent); }
 .sandbox-checks li[data-level='warning'] { color: var(--gold); }
 .sandbox-checks li[data-level='unchecked'] { color: var(--muted); }
+
+/* Connections graph: two fixed columns and its text list. */
+.graph-svg { width: 100%; height: auto; display: block; }
+.graph-edge { fill: none; stroke: var(--line-bracket); stroke-width: 1.2; transition: stroke 0.15s, opacity 0.15s; }
+.graph-edge[data-open='true'] { stroke: var(--win); }
+.graph-edge[data-lit='false'] { opacity: 0.12; }
+.graph-edge[data-lit='true'] { stroke: var(--ink); stroke-width: 2; }
+.graph-person, .graph-team { fill: var(--ink); font: 700 13px var(--font-display); text-transform: uppercase; cursor: default; }
+.graph-person[data-open='false'] { fill: var(--muted); }
+.graph-team { fill: var(--muted); }
+.graph-person[data-lit='false'], .graph-team[data-lit='false'] { opacity: 0.3; }
+.graph-person[data-lit='true'], .graph-team[data-lit='true'] { fill: var(--accent); opacity: 1; }
+.graph-key-open { background: var(--win); height: 2px !important; }
+.graph-key-past { background: var(--line-bracket); height: 2px !important; }
+.graph-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.graph-list li { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); gap: 6px 14px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.graph-list li[data-lit='false'] { opacity: 0.4; }
+.graph-list-team { display: flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; }
+.graph-list-team b { font: 700 15px var(--font-display); text-transform: uppercase; }
+.graph-list-people { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: var(--fs-label); }
+.graph-list-people a { color: var(--ink); text-decoration: none; }
+.graph-list-people a:hover, .graph-list-people a:focus-visible { text-decoration: underline; }
+.graph-list-people small { color: var(--muted); }
+@media (max-width: 560px) { .graph-svg { display: none; } .graph-list li { grid-template-columns: 1fr; } }
