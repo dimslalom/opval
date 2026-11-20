@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { normalizeMatch } from '../scripts/feed/normalize.js';
-import { mapMvps, scoreLineup, scoreMap, scoreSeries } from '../src/engine/shared/scoring.js';
+import { mapMvps, scoreMap, scoreSeries } from '../src/engine/shared/scoring.js';
 
 const golden = JSON.parse(readFileSync(new URL('./fixtures/feed/match-753462.v2.json', import.meta.url), 'utf8'));
 const match = normalizeMatch(golden.data.segments[0]);
@@ -46,11 +46,4 @@ test('a real series: everyone scores, the series bonus lands once on the last ma
   const winner = match.maps[0].players.find(p => p.side === 2).vlrId;
   assert.equal(points.get(winner).maps[0].lines.result, 4);
   assert.equal(points.get(winner).maps[1].lines.result, 4 + 5);
-});
-
-test('the captain doubles points, negatives included', () => {
-  const points = new Map([[1, { total: 50 }], [2, { total: -10 }], [3, { total: 30 }]]);
-  assert.equal(scoreLineup([1, 2, 3], 1, points).total, 100 - 10 + 30);
-  assert.equal(scoreLineup([1, 2, 3], 2, points).total, 50 - 20 + 30);
-  assert.equal(scoreLineup([1, 2, 3], 99, points).total, 70);
 });

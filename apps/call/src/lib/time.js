@@ -1,7 +1,7 @@
 // Dates are grouped in the viewer's own timezone, like the official schedule.
 const dayFmt = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
 const timeFmt = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' });
-const longFmt = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+const longFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'long', month: 'long', day: 'numeric' });
 
 export const dayKey = unix => dayFmt.format(new Date(unix * 1000));
 export const todayKey = () => dayFmt.format(new Date());
@@ -18,4 +18,4 @@ export const untilOf = (unix, now) => {
 };
 
 // A roster date at the precision we know it: day, month, year.
-export const rosterDay = s => new Date(s * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+export const rosterDay = s => new Date(s * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });

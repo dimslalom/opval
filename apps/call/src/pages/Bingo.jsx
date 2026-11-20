@@ -33,8 +33,8 @@ const SHORT = {
   contract_change: 'Contract changes', contract_extend: 'Contract extended', contract_shorten: 'Contract cut',
 };
 const nameOf = sq => SHORT[sq.id] ?? sq.label;
-const dayOf = s => new Date(s * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
-const weekdayOf = s => new Date(s * 1000).toLocaleDateString(undefined, { weekday: 'short' });
+const dayOf = s => new Date(s * 1000).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const weekdayOf = s => new Date(s * 1000).toLocaleDateString('en-GB', { weekday: 'short' });
 
 // Time left as the two largest units: "2d 4h", "4h 12m", "38m".
 function left(seconds) {
@@ -104,7 +104,7 @@ export default function Bingo() {
     try {
       const res = await fetch('/api/weekly-bingo', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ week, slot, cells, version: saved?.version ?? 0 }) });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? 'The card was not saved.');
+      if (!res.ok) throw new Error(body.error ?? "Your card wasn't saved. Try again.");
       await load();
       window.dispatchEvent(new Event('opval-wallet-changed'));
     } catch (e) {
@@ -230,7 +230,7 @@ export default function Bingo() {
         </div>;
       })}
       {picking && !picking.square && search && !(data?.squares ?? []).some(s => `${nameOf(s)} ${s.label} ${CLUSTERS.find(c=>c.id===s.cluster)?.label??''}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
-        && <p className="bingo-picker-note">No squares found.</p>}
+        && <p className="bingo-picker-note">No squares match your search.</p>}
       {picking?.square && (() => {
         const sq = weeklyById[picking.square];
         const current = cells[picking.i];
@@ -238,7 +238,7 @@ export default function Bingo() {
         const options = [{ matchId: null, n: eligible(sq).length }, ...eligible(sq), ...soon.map(m => ({ ...m, soon: true }))];
         return <><p className="bingo-picker-note">{eligible(sq).length
           ? 'Pick any match, or name one for more points. Games starting within an hour cannot be named.'
-          : 'No match is eligible yet. Any match can cover games listed later this week.'}</p><ul className="bingo-targets">
+          : 'No matches are open yet. Pick Any match to cover games added later this week.'}</p><ul className="bingo-targets">
           {options.map(m => {
             const named = m.matchId != null && m.team1Tag !== undefined;
             const pts = data.catalog[sq.id][named ? 'named' : 'general'];
@@ -247,7 +247,7 @@ export default function Bingo() {
               <span className="bingo-target-what">
                 {named ? <Tags match={m} /> : <b>Any match</b>}
                 {named ? <small><Split parts={[weekdayOf(m.startsAt), timeOf(m.startsAt)]} /></small>
-                  : m.n ? <Crowd matches={eligible(sq)} /> : <small>Future eligible games</small>}
+                  : m.n ? <Crowd matches={eligible(sq)} /> : <small>Games added later this week</small>}
               </span>
               {m.soon
                 ? <span className="bingo-soon" aria-label={`Starts in ${left(m.startsAt - now)}, too soon to pick`}><IconClock size={15} stroke={2.2} aria-hidden="true" />{left(m.startsAt - now)}</span>

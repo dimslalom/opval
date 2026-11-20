@@ -12,5 +12,4 @@ export const SCORING = {
   mapWin: 4,
   seriesWin: 5,                              // credited on the series' last map
   mapMvp: 5,                                 // best R2.0 of the ten players on the map
-  captain: 2,
 };

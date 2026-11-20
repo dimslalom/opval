@@ -32,7 +32,6 @@ test('checkSave only lets unlocked cells change', () => {
   assert.deepEqual(checkSave(card, card, matches, T), []);
   const lockedStored = { cells: [{ square: 'ot', matchId: 3 }, ...card.cells.slice(1)] };
   assert.deepEqual(checkSave(card, lockedStored, matches, T), ['cell 0: locked']);
-  assert.deepEqual(checkSave(card, lockedStored, matches, T).length, 1);
 });
 
 test('map 3 only fits a Bo3: free in a Bo5, impossible in a Bo1', () => {

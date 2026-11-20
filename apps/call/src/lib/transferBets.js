@@ -1,15 +1,25 @@
 // Roster guesses: a set of moves on one team, each "X replaced by Y" or "X leaving for Team".
 // A move becomes legs: X leaves (any roster_depart) plus someone joins (roster_add at that team).
-// Legs are staked in credits and settled from Riot GCD roster events at the next roster lock.
-// Each leg that hits pays its share of stake x (legs + 1), so 3 legs pay 4x when all hit, 1.33x on one.
+// Legs settle from Riot GCD roster events at the next roster lock. Each right leg scores points;
+// nothing is staked. Guesses staked in credits before points-only (stake set) still settle as
+// placed: each hit leg pays its share of stake x (legs + 1).
 
 // ponytail: hand-kept VCT roster lock dates; add each split's date here (or feed it) as Riot announces them.
 export const ROSTER_LOCKS = ['2027-01-12T00:00:00Z'];
 export const nextLock = t => ROSTER_LOCKS.map(d => Date.parse(d) / 1000).find(x => x > t) ?? null;
 
-export const TRANSFER = { minStake: 10, maxStake: 500, maxMoves: 5 };
+export const TRANSFER = { maxMoves: 5, pointsPerLeg: 10 };
 export const multiplierOf = legs => legs + 1;
 export const payoutOf = (stake, legs, hits) => (legs ? Math.floor(stake * multiplierOf(legs) * hits / legs) : 0);
+export const pointsOf = hits => hits * TRANSFER.pointsPerLeg;
+
+// What a guess is worth, for display: points for points-only guesses, credits for older staked ones.
+// Before settling it is the most it can score; after, what it scored.
+export function scoreOf(g) {
+  const settled = g.settledAt != null;
+  if (g.stake == null) return { unit: 'PTS', settled, value: settled ? g.points : pointsOf(g.legs.length) };
+  return { unit: 'CR', settled, value: settled ? g.payout : payoutOf(g.stake, g.legs.length, g.legs.length) };
+}
 
 const clean = s => String(s ?? '').trim().replace(/\s+/g, ' ');
 // Riot GCD identity is "player|league" (worker/feed/roster.js), so a join is matched in the team's league.

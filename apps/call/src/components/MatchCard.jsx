@@ -131,11 +131,11 @@ export default function MatchCard({ match, eventLabel, now }) {
           {busy ? 'Revealing' : 'Reveal result'}
         </button>
       )}
-      {failed && <p className="error">Could not load the result. Try again.</p>}
+      {failed && <p className="error">We couldn't load the result. Try again.</p>}
 
       {report && !guarded && (
         <div className="result">
-          {report.preJoin && <p className="muted">Played before you joined, so it does not score.</p>}
+          {report.preJoin && <p className="muted">This match was played before you joined, so it doesn't score.</p>}
           {!report.preJoin && (
             <>
               <Swipe>

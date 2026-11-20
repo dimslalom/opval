@@ -24,6 +24,11 @@
     "logo": "/assets/orgs/c9.png",
     "source": "https://www.vlr.gg/team/188/cloud9"
   },
+  "CR": {
+    "name": "Crazy Raccoon",
+    "logo": "/assets/orgs/cr.png",
+    "source": "https://www.vlr.gg/team/277/crazy-raccoon"
+  },
   "DFM": {
     "name": "DetonatioN FocusMe",
     "logo": "/assets/orgs/dfm.png",
@@ -78,6 +83,11 @@
     "name": "G2 Esports",
     "logo": "/assets/orgs/g2.png",
     "source": "https://www.vlr.gg/team/11058/g2-esports"
+  },
+  "GAM": {
+    "name": "GAM Esports",
+    "logo": "/assets/orgs/gam.png",
+    "source": "https://www.vlr.gg/team/23700/gam-esports"
   },
   "GE": {
     "name": "Global Esports",
@@ -223,6 +233,11 @@
     "name": "VARREL",
     "logo": "/assets/orgs/vl.png",
     "source": "https://www.vlr.gg/team/11229/varrel"
+  },
+  "WBG": {
+    "name": "Weibo Gaming",
+    "logo": "/assets/orgs/wbg.png",
+    "source": "https://www.vlr.gg/team/1224/weibo-gaming"
   },
   "WOL": {
     "name": "Wolves Esports",

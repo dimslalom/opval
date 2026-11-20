@@ -19,6 +19,18 @@ async function sources(db, where = '', bind = []) {
     ORDER BY s.id`).bind(...bind).all()).results;
 }
 
+// Manual roster entries Riot's data does not show yet: a join while the person is not listed on the
+// team, a leave while they still are. Once Riot's data agrees, the entry stops counting. `where`
+// narrows by team.
+async function pendingAnnouncements(db, where = '', bind = []) {
+  return (await db.prepare(`SELECT a.id,a.team_id AS teamId,a.handle,a.kind,a.move,a.basis,a.announced_on AS announcedOn,a.source_url AS sourceUrl,
+    EXISTS(SELECT 1 FROM roster_memberships m JOIN roster_people p ON p.id=m.person_id
+      WHERE m.team_id=a.team_id AND m.kind=a.kind AND m.end_before IS NULL AND lower(p.handle)=lower(a.handle)) AS listed
+    FROM roster_announcements a WHERE a.withdrawn_at IS NULL ${where} ORDER BY a.announced_on DESC,a.id`).bind(...bind).all()).results
+    .filter(a => (a.move === 'join') !== Boolean(a.listed))
+    .map(a => ({ id: a.id, teamId: a.teamId, handle: a.handle, kind: a.kind, move: a.move, basis: a.basis, announcedOn: a.announcedOn, sourceUrl: a.sourceUrl }));
+}
+
 const latestRead = list => Math.max(0, ...list.map(s => s.lastSuccessAt ?? 0)) || now();
 
 function readAt(url, fallback) {
@@ -104,7 +116,53 @@ export async function handleRosterV2(db, url) {
       FROM roster_teams t JOIN roster_memberships m ON m.team_id=t.id AND m.end_before IS NULL
       JOIN latest l ON l.source_id=m.source_id
       GROUP BY t.id ORDER BY t.league,t.name`).all()).results;
+    // Manual entries take priority over Riot's data in the counts.
+    for (const a of await pendingAnnouncements(db)) {
+      const t = teams.find(x => x.id === a.teamId);
+      if (!t) continue;
+      const field = a.kind === 'player' ? 'players' : 'staff';
+      t[field] = Math.max(0, t[field] + (a.move === 'join' ? 1 : -1));
+    }
     return reply({ generatedAt: now(), sources: await sources(db), teams });
+  }
+
+  if (path === '/api/roster/v2/graph') {
+    // One row per observed player stint. Keep separate intervals for players who rejoined a team.
+    const [sourceList, { results }] = await Promise.all([
+      sources(db),
+      db.prepare(`WITH latest AS (SELECT source_id, MAX(observed_at) AS observed_at FROM roster_reads GROUP BY source_id)
+        SELECT m.id,m.person_id AS personId,p.handle,m.team_id AS teamId,t.name,t.tag,t.league,
+          m.source_id AS sourceId,m.start_before AS firstSeenAt,m.last_seen_at AS lastSeenAt,
+          COALESCE(m.end_before IS NULL AND m.last_seen_at >= l.observed_at, 0) AS latest,
+          r.archive_url AS archiveUrl
+        FROM roster_memberships m
+        JOIN roster_people p ON p.id=m.person_id JOIN roster_teams t ON t.id=m.team_id
+        JOIN roster_sources s ON s.id=m.source_id AND s.enabled=1
+        JOIN roster_import_runs r ON r.id=m.first_run_id
+        LEFT JOIN latest l ON l.source_id=m.source_id
+        WHERE m.kind='player'
+        ORDER BY m.id`).all(),
+    ]);
+    const players = new Map();
+    const teams = new Map();
+    const stints = results.map(({ personId, handle, teamId, name, tag, league, latest, ...stint }) => {
+      players.set(personId, { id: personId, handle });
+      teams.set(teamId, { id: teamId, name, tag, league });
+      return { personId, teamId, latest: Boolean(latest), ...stint };
+    });
+    return reply({ generatedAt: now(), sources: sourceList, players: [...players.values()], teams: [...teams.values()], stints });
+  }
+
+  // Connections: everyone ever listed on this team, and every tracked team those people have been on,
+  // one row per person, team and kind with the span the reads listed them.
+  if ((match = path.match(/^\/api\/roster\/v2\/teams\/(\d+)\/graph$/))) {
+    const id = Number(match[1]);
+    const links = (await db.prepare(`SELECT m.person_id AS personId,p.handle,m.team_id AS teamId,t.name AS team,t.tag,t.league,m.kind,
+        MIN(m.start_before) AS first,MAX(m.last_seen_at) AS last,MAX(m.end_before IS NULL) AS open
+      FROM roster_memberships m JOIN roster_people p ON p.id=m.person_id JOIN roster_teams t ON t.id=m.team_id
+      WHERE m.person_id IN (SELECT person_id FROM roster_memberships WHERE team_id=?1)
+      GROUP BY m.person_id,m.team_id,m.kind ORDER BY m.person_id LIMIT 1000`).bind(id).all()).results;
+    return reply({ generatedAt: now(), teamId: id, links: links.map(l => ({ ...l, open: Boolean(l.open) })) });
   }
 
   if ((match = path.match(/^\/api\/roster\/v2\/teams\/(\d+)$/))) {
@@ -120,7 +178,24 @@ export async function handleRosterV2(db, url) {
     const reads = src.length ? (await db.prepare(`SELECT first_at AS t FROM roster_read_days WHERE source_id IN (SELECT value FROM json_each(?))
       ORDER BY day DESC LIMIT 2000`).bind(JSON.stringify(src.map(s => s.id))).all()).results.map(r => r.t).reverse() : [];
     const spans = spansOf(rows);
-    return reply({ generatedAt: now(), at, latestRead: latestRead(src), sources: src, team: info, reads, memberships: rows.map(m => membership(m, at, spans)) });
+    const announced = await pendingAnnouncements(db, 'AND a.team_id=?', [id]);
+    return reply({ generatedAt: now(), at, latestRead: latestRead(src), sources: src, team: info, reads, announced, memberships: rows.map(m => membership(m, at, spans)) });
+  }
+
+  // Person search for the sandbox: handles starting with (then containing) the query, each with
+  // where Riot's data lists them now (an open tenure confirmed in the last 30 days of reads).
+  if (path === '/api/roster/v2/people') {
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase().slice(0, 40);
+    if (q.length < 2) return reply({ people: [] });
+    const people = (await db.prepare(`SELECT p.id,p.handle,
+        (SELECT json_object('teamId',t.id,'team',t.name,'tag',t.tag,'league',t.league,'kind',m.kind,'status',m.status,'contractEnd',m.contract_end)
+          FROM roster_memberships m JOIN roster_teams t ON t.id=m.team_id
+          WHERE m.person_id=p.id AND m.end_before IS NULL
+            AND m.last_seen_at >= (SELECT MAX(observed_at) FROM roster_reads WHERE source_id=m.source_id) - 30*86400
+          ORDER BY m.last_seen_at DESC LIMIT 1) AS now
+      FROM roster_people p WHERE lower(p.handle) LIKE ?1
+      ORDER BY lower(p.handle) LIKE ?2 DESC, length(p.handle), p.handle LIMIT 12`).bind(`%${q}%`, `${q}%`).all()).results;
+    return reply({ people: people.map(p => ({ id: p.id, handle: p.handle, now: p.now ? JSON.parse(p.now) : null })) });
   }
 
   if ((match = path.match(/^\/api\/roster\/v2\/people\/(\d+)$/))) {

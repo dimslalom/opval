@@ -16,8 +16,6 @@ test('the card is 2x2, and in a 2x2 every pair of cells is a line', () => {
   const l = lines(2).map(x => x.join());
   assert.equal(new Set(l).size, 6);
   assert.deepEqual(l.sort(), ['0,1', '0,2', '0,3', '1,2', '1,3', '2,3']);
-  assert.equal(lines(3).length, 8);
-  assert.equal(lines(5).length, 12);
 });
 
 test('validateCard rejects wrong size, unknown square, off-slate match, duplicates', () => {

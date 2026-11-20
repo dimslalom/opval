@@ -82,7 +82,7 @@ async function board(db,week,t) {
 export async function handleWeeklyBingo(user,env,url,method,body,t=now()) {
   const key=method==='PUT' ? body?.week : url.searchParams.get('week')??nextEditableWeek(t);
   const requested=weekBounds(key),current=weekBounds(nextEditableWeek(t));
-  if (!requested || requested[0]>current[0] || requested[0]<t-52*7*86400) return reply({error:'Week is not available'},400);
+  if (!requested || requested[0]>current[0] || requested[0]<t-52*7*86400) return reply({error:"This week isn't available."},400);
   const week=await ensureWeek(env.DB,key,t);
   if (!week) return reply({error:'bad week'},400);
   if (method==='GET' && url.pathname==='/api/weekly-bingo') {
@@ -98,15 +98,15 @@ export async function handleWeeklyBingo(user,env,url,method,body,t=now()) {
     return reply({week:key,entries:entries.slice(0,50).map(({username,points,rank})=>({username,points,rank})),me:{username:user.username,points:own?.points??0,rank:own?.rank??null}});
   }
   if (method!=='PUT'||url.pathname!=='/api/weekly-bingo') return reply({error:'method not allowed'},405);
-  if (t>=week.ends_at) return reply({error:'Week is over'},409);
-  if (key!==nextEditableWeek(t)) return reply({error:'Cards can only be submitted for this week'},400);
+  if (t>=week.ends_at) return reply({error:'This week is over, so cards are closed.'},409);
+  if (key!==nextEditableWeek(t)) return reply({error:'You can only lock cards for this week.'},400);
   const {slot,cells,version}=body??{};
   if (!Number.isInteger(slot)||slot<1||slot>(week.paid_enabled?BINGO.maxCards:1)||!Number.isInteger(version)||version<0) return reply({error:'bad card'},400);
   const mine=await cards(env.DB,user.id,key);
   const old=mine.find(c=>c.slot===slot);
-  if ((old?.version??0)!==version) return reply({error:'Card changed elsewhere',card:old??{slot,cells:null,version:0}},409);
-  if (old) return reply({error:'Submitted cards are locked'},409);
-  if (!old&&slot!==mine.length+1) return reply({error:'Fill cards in order'},400);
+  if ((old?.version??0)!==version) return reply({error:'This card changed in another tab or device. Reload to see it.',card:old??{slot,cells:null,version:0}},409);
+  if (old) return reply({error:"This card is locked, so it can't change."},409);
+  if (!old&&slot!==mine.length+1) return reply({error:'Fill your cards in order, starting with card 1.'},400);
   const clean=Array.isArray(cells)?cells.map(c=>({square:c?.square,matchId:c?.matchId??null})):cells;
   const eligible=week.matches.filter(m=>m.startsAt>=t+MATCH_LEAD_TIME);
   const problem=validateWeeklyCard(clean,mine.filter(c=>c.slot!==slot),eligible,week.points);
@@ -114,11 +114,11 @@ export async function handleWeeklyBingo(user,env,url,method,body,t=now()) {
   if (slot===1) {
     const res=await env.DB.prepare('INSERT INTO weekly_bingo_cards(user_id,week,slot,cells,version,updated_at,locked_at,catalog) VALUES(?,?,?,?,1,?,?,?) ON CONFLICT DO NOTHING')
       .bind(user.id,key,slot,JSON.stringify(clean),t,t,JSON.stringify(week.points)).run();
-    return res.meta.changes?reply({ok:true,slot,version:1}):reply({error:'Card changed elsewhere'},409);
+    return res.meta.changes?reply({ok:true,slot,version:1}):reply({error:'This card changed in another tab or device. Reload to see it.'},409);
   }
   // Paid cards stay disabled until the calibration gate sets paid_enabled on a future week.
   const wallet=await ensureWallet(env.DB,user.id,t);
-  if (wallet.balance<BINGO.cardCost) return reply({error:'Not enough credits'},402);
+  if (wallet.balance<BINGO.cardCost) return reply({error:"You don't have enough credits for this."},402);
   const keyOf=`bingo:${key}:${slot}`;
   try {
     await env.DB.batch([
@@ -130,9 +130,9 @@ export async function handleWeeklyBingo(user,env,url,method,body,t=now()) {
         SELECT ?,?,?,?,1,?,?,? WHERE EXISTS(SELECT 1 FROM wallet_entries WHERE user_id=? AND entry_key=?)`)
         .bind(user.id,key,slot,JSON.stringify(clean),t,t,JSON.stringify(week.points),user.id,keyOf),
     ]);
-  } catch { return reply({error:'Purchase conflicted; reload your cards'},409); }
+  } catch { return reply({error:"That didn't go through because your cards changed. Reload and try again."},409); }
   const purchased=await env.DB.prepare('SELECT version FROM weekly_bingo_cards WHERE user_id=? AND week=? AND slot=?').bind(user.id,key,slot).first();
-  if (!purchased) return reply({error:'Not enough credits'},402);
+  if (!purchased) return reply({error:"You don't have enough credits for this."},402);
   const fresh=await env.DB.prepare('SELECT balance FROM wallets WHERE user_id=?').bind(user.id).first();
   return reply({ok:true,slot,version:1,balance:fresh.balance});
 }

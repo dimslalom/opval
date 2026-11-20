@@ -9,6 +9,7 @@ import { gameAction } from './gameActions.js';
 import { calibrationStatus } from './calibration.js';
 import { handleTransferBets } from './transferBets.js';
 import { publicProfile } from './profile.js';
+import { handleWorkspaces, readShare, LIMITS as WORKSPACE_LIMITS } from './rosterWorkspaces.js';
 
 const COOKIE = 'opval_session';
 const SESSION_SECS = 60 * 60 * 24 * 30;
@@ -75,7 +76,7 @@ async function limited(env, key, max, windowSecs) {
   return row.n > max;
 }
 const ip = request => request.headers.get('CF-Connecting-IP') ?? 'local';
-const tooMany = () => reply({ error: 'Too many attempts. Try again later.' }, 429);
+const tooMany = () => reply({ error: 'Too many attempts. Wait a few minutes, then try again.' }, 429);
 
 async function startSession(env, userId) {
   const token = hex(crypto.getRandomValues(new Uint8Array(32)));
@@ -113,8 +114,8 @@ function credentials(body) {
 async function signup(request, env) {
   if (await limited(env, `signup:${ip(request)}`, 5, 3600)) return tooMany();
   const { username, password } = credentials(await readJson(request));
-  if (!USERNAME.test(username)) return reply({ error: 'Username: 3 to 20 letters, numbers or underscores.' }, 400);
-  if (password.length < 8 || password.length > 128) return reply({ error: 'Password: 8 to 128 characters.' }, 400);
+  if (!USERNAME.test(username)) return reply({ error: 'Use 3 to 20 letters, numbers or underscores for your username.' }, 400);
+  if (password.length < 8 || password.length > 128) return reply({ error: 'Use 8 to 128 characters for your password.' }, 400);
   const recoveryCode = newRecoveryCode();
   let id;
   try {
@@ -122,7 +123,7 @@ async function signup(request, env) {
       .bind(username, await hashPassword(password), await tokenHash(normalizeCode(recoveryCode)), now()).first();
     id = row.id;
   } catch {
-    return reply({ error: 'That username is taken.' }, 409);
+    return reply({ error: 'That username is taken. Try another one.' }, 409);
   }
   const token = await startSession(env, id);
   return reply({ user: { username }, recoveryCode }, 201, { 'Set-Cookie': sessionCookie(request, token, SESSION_SECS) });
@@ -133,7 +134,7 @@ async function login(request, env) {
   if (await limited(env, `login:ip:${ip(request)}`, 20, 900) || await limited(env, `login:user:${username}`, 8, 900)) return tooMany();
   const row = USERNAME.test(username) ? await env.DB.prepare('SELECT id, pw_hash FROM users WHERE username = ?').bind(username).first() : null;
   const ok = await checkPassword(password.slice(0, 128), row?.pw_hash ?? DUMMY);
-  if (!row || !ok) return reply({ error: 'Wrong username or password.' }, 401);
+  if (!row || !ok) return reply({ error: "That username and password don't match. Check them and try again." }, 401);
   const token = await startSession(env, row.id);
   return reply({ user: { username } }, 200, { 'Set-Cookie': sessionCookie(request, token, SESSION_SECS) });
 }
@@ -149,7 +150,7 @@ async function newCode(request, user, env) {
   const { password } = credentials(await readJson(request));
   if (await limited(env, `code:${user.id}`, 8, 900)) return tooMany();
   const row = await env.DB.prepare('SELECT pw_hash FROM users WHERE id = ?').bind(user.id).first();
-  if (!await checkPassword(password.slice(0, 128), row.pw_hash)) return reply({ error: 'Wrong password.' }, 401);
+  if (!await checkPassword(password.slice(0, 128), row.pw_hash)) return reply({ error: "That password doesn't match this account. Try again." }, 401);
   const recoveryCode = newRecoveryCode();
   await env.DB.prepare('UPDATE users SET recovery_hash = ? WHERE id = ?').bind(await tokenHash(normalizeCode(recoveryCode)), user.id).run();
   return reply({ recoveryCode });
@@ -159,14 +160,14 @@ async function reset(request, env) {
   const body = await readJson(request);
   const { username, password } = credentials(body);
   if (await limited(env, `reset:ip:${ip(request)}`, 10, 3600) || await limited(env, `reset:user:${username}`, 5, 3600)) return tooMany();
-  if (password.length < 8 || password.length > 128) return reply({ error: 'Password: 8 to 128 characters.' }, 400);
+  if (password.length < 8 || password.length > 128) return reply({ error: 'Use 8 to 128 characters for your password.' }, 400);
   const row = USERNAME.test(username) ? await env.DB.prepare('SELECT id, recovery_hash FROM users WHERE username = ?').bind(username).first() : null;
   const given = await tokenHash(normalizeCode(body?.code));
   // Compare against a dummy when the user or code is missing so every failure costs the same.
   const want = row?.recovery_hash ?? '0'.repeat(64);
   let diff = given.length ^ want.length;
   for (let i = 0; i < given.length; i += 1) diff |= given.charCodeAt(i) ^ want.charCodeAt(i);
-  if (!row?.recovery_hash || diff !== 0) return reply({ error: 'Wrong username or recovery code.' }, 401);
+  if (!row?.recovery_hash || diff !== 0) return reply({ error: "That username and recovery code don't match. Check them and try again." }, 401);
   // New password and a fresh code (the old one is spent), every old session signed out.
   const recoveryCode = newRecoveryCode();
   await env.DB.batch([
@@ -195,7 +196,7 @@ async function getSave(user, env) {
 // The column comes only from this allowlist. A zero-score account stays unranked until
 // it reveals a result, while the caller still gets its own score in the response.
 async function leaderboard(user, env, url) {
-  const columns = { overall: 'overall_points', calls: 'call_points', cards: 'card_points' };
+  const columns = { overall: 'overall_points', calls: 'call_points', cards: 'card_points', transfers: 'guess_points' };
   const board = url.searchParams.get('board') ?? 'overall';
   const column = columns[board];
   if (!column) return reply({ error: 'Unknown leaderboard.' }, 400);
@@ -208,19 +209,23 @@ async function leaderboard(user, env, url) {
         CASE WHEN json_valid(h.value) AND json_type(h.value, '$.callPoints') IN ('integer', 'real')
           THEN MAX(0, CAST(json_extract(h.value, '$.callPoints') AS INTEGER)) ELSE 0 END AS call_points,
         CASE WHEN json_valid(h.value) AND json_type(h.value, '$.trackedPoints') IN ('integer', 'real')
-          THEN MAX(0, CAST(json_extract(h.value, '$.trackedPoints') AS INTEGER)) ELSE 0 END AS card_points
+          THEN MAX(0, CAST(json_extract(h.value, '$.trackedPoints') AS INTEGER)) ELSE 0 END AS card_points,
+        0 AS guess_points
       FROM saves s, json_each(s.state, '$.history') h
       UNION ALL
-      SELECT x.user_id, x.call_points, x.tracked_points
+      SELECT x.user_id, x.call_points, x.tracked_points, 0
       FROM call_settlements x JOIN saves s ON s.user_id = x.user_id
       WHERE json_type(s.state, '$.revealed."' || x.match_id || '"') IS NULL
+      UNION ALL
+      -- Settled points-only transfer guesses (staked ones paid credits, not points).
+      SELECT user_id, 0, 0, points FROM transfer_bets WHERE points IS NOT NULL
     ), scores AS (
-      SELECT p.user_id, u.username, SUM(p.call_points) AS call_points, SUM(p.card_points) AS card_points
+      SELECT p.user_id, u.username, SUM(p.call_points) AS call_points, SUM(p.card_points) AS card_points, SUM(p.guess_points) AS guess_points
       FROM points p JOIN users u ON u.id = p.user_id
       GROUP BY p.user_id
     ), totals AS (
-      SELECT user_id, username, call_points, card_points,
-        call_points + card_points AS overall_points FROM scores
+      SELECT user_id, username, call_points, card_points, guess_points,
+        call_points + card_points + guess_points AS overall_points FROM scores
     ), ranked AS (
       SELECT user_id, username, ${column} AS points,
         RANK() OVER (ORDER BY ${column} DESC) AS rank,
@@ -270,6 +275,19 @@ export async function handleAccounts(request, env, url) {
   if (path === '/api/auth/me' && method === 'GET') {
     const user = await currentUser(request, env);
     return reply({ user: user ? { username: user.username } : null });
+  }
+
+  if (path.startsWith('/api/shares/') && method === 'GET') return readShare(env, path.slice('/api/shares/'.length));
+
+  if (path === '/api/workspaces' || path.startsWith('/api/workspaces/')) {
+    const user = await currentUser(request, env);
+    if (!user) return reply({ error: 'Sign in to save lineups.' }, 401, { 'Cache-Control': 'private, no-store' });
+    let body = null;
+    if (method === 'POST' || method === 'PUT') {
+      body = await readJson(request, WORKSPACE_LIMITS.payloadBytes + 1024);
+      if (!body && !path.endsWith('/shares')) return reply({ error: 'Send the lineup as JSON under 64 KB.' }, 413);
+    }
+    return handleWorkspaces(user, env, method, path, body);
   }
 
   if (path === '/api/leaderboard' && method === 'GET') {

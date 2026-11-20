@@ -29,7 +29,6 @@ export const ECONOMY = {
   swapByTier: { bronze: 0, silver: 50, gold: 150, icon: 300 },
   duplicateRefund: 100,
   freeStarterPacks: 2,
-  starterCards: 10,
 };
 
 // Bingo: one card a day is free, extras cost credits, and the cap keeps a day's cards bounded.
@@ -38,5 +37,3 @@ export const BINGO = { freeCards: 1, cardCost: 100, maxCards: 5 };
 // Pack odds by card tier (a gold card is about 13% of the pool, so this is generous).
 export const PACK_ODDS = { gold: 0.14, silver: 0.38, bronze: 0.48 };
 
-// Starter collection: a fixed mix so everyone starts with a real chance.
-export const STARTER_MIX = { gold: 2, silver: 4, bronze: 4 };

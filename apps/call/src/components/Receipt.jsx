@@ -2,10 +2,10 @@ import { useRef, useState } from 'react';
 import { toBlob } from 'html-to-image';
 import { Face } from './Face';
 import { colorsFor, logoFor, logoForName, tagForName } from '../lib/orgs';
-import { multiplierOf, payoutOf } from '../lib/transferBets';
+import { TRANSFER, multiplierOf, payoutOf, pointsOf } from '../lib/transferBets';
 import { CALL } from '../../../../src/engine/collect/rules';
 
-const stamp = s => new Date(s * 1000).toLocaleString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const stamp = s => new Date(s * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const serial = id => String(id).replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase().padStart(8, '0');
 
 // Bars from the serial, so every receipt has its own (decorative, not scannable) barcode.
@@ -42,11 +42,19 @@ function RosterBody({ guess, settled }) {
       </li>)}
     </ul>
     <dl className="rc-totals">
-      <div><dt>Stake</dt><dd>{guess.stake}</dd></div>
-      <div><dt>All {guess.legs.length} hit</dt><dd>{multiplierOf(guess.legs.length)}x</dd></div>
-      {settled
-        ? <div className="rc-grand"><dt>Paid {hitsSoFar}/{guess.legs.length}</dt><dd>{guess.payout}</dd></div>
-        : <div className="rc-grand"><dt>Max</dt><dd>{payoutOf(guess.stake, guess.legs.length, guess.legs.length)}</dd></div>}
+      {guess.stake == null ? <>
+        <div><dt>Per right call</dt><dd>{TRANSFER.pointsPerLeg} PTS</dd></div>
+        {settled
+          ? <div className="rc-grand"><dt>Scored {hitsSoFar}/{guess.legs.length}</dt><dd>{guess.points} PTS</dd></div>
+          : <div className="rc-grand"><dt>Max</dt><dd>{pointsOf(guess.legs.length)} PTS</dd></div>}
+      </> : <>
+        {/* Staked before guesses became points only: settles in credits, as placed. */}
+        <div><dt>Stake</dt><dd>{guess.stake}</dd></div>
+        <div><dt>All {guess.legs.length} hit</dt><dd>{multiplierOf(guess.legs.length)}x</dd></div>
+        {settled
+          ? <div className="rc-grand"><dt>Paid {hitsSoFar}/{guess.legs.length}</dt><dd>{guess.payout}</dd></div>
+          : <div className="rc-grand"><dt>Max</dt><dd>{payoutOf(guess.stake, guess.legs.length, guess.legs.length)}</dd></div>}
+      </>}
     </dl>
     {!settled && <p className="rc-due">Settles {stamp(guess.deadline)}</p>}
   </>;

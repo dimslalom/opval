@@ -7,10 +7,9 @@ import { colorsFor, tagForName } from '../lib/orgs';
 import { assetPath } from '../../../../shared/src/lib/utils';
 import { searchCards, suggestCards } from '../lib/rosterCards';
 import { glassVars } from '../lib/ink';
-import { identityOf, multiplierOf, payoutOf } from '../lib/transferBets';
+import { TRANSFER, identityOf, pointsOf, scoreOf } from '../lib/transferBets';
 
 const yearOf = end => Number(String(end ?? '').match(/20\d\d/)?.[0]) || null;
-const STAKES = [10, 50, 100, 250, 500];
 
 // One player's move: who replaces them, or which team they leave for. Before anyone types it already
 // offers the likely answers: the best cards from the team's region, and the teams in its league.
@@ -112,7 +111,7 @@ function useFitScale(ref, count) {
 
 // Contract end as a picture: a track of years from now, filled up to the year the deal ends.
 function ContractTrack({ player, team, end, thisYear, years = 4 }) {
-  const tip = end ? `${player}'s contract with ${team} ends with the ${end} season${end === thisYear ? ': free to move this offseason.' : '.'}` : 'Contract end not listed on Riot GCD';
+  const tip = end ? `${player}'s contract with ${team} ends with the ${end} season${end === thisYear ? ', so they can move this offseason.' : '.'}` : "Riot's contract database lists no end date.";
   return <span className="contract" data-ending={end === thisYear} tabIndex={0} data-tip={tip} aria-label={tip}>
     <IconContract size={15} stroke={2} aria-hidden="true" />
     <span className="contract-track" aria-hidden="true">{Array.from({ length: years }, (_, i) => <i key={i} data-on={end != null && thisYear + i <= end} data-end={thisYear + i === end} />)}</span>
@@ -126,7 +125,6 @@ export function TeamSheet({ team, contracts, guessing, onClose, onPlaced, signed
   const roster = contracts.filter(c => c.team === team).map(c => ({ ...c, key: identityOf(c.player, c.league) }));
   const [moves, setMoves] = useState({});
   const [picking, setPicking] = useState(null);
-  const [stake, setStake] = useState(() => Math.min(50, STAKES.filter(v => v <= (guessing?.balance ?? 50)).at(-1) ?? STAKES[0]));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [placed, setPlaced] = useState(null);
@@ -135,23 +133,19 @@ export function TeamSheet({ team, contracts, guessing, onClose, onPlaced, signed
 
   const list = Object.entries(moves);
   const legs = list.reduce((n, [, m]) => n + (m.in || m.to ? 2 : 0), 0);
-  const balance = guessing?.balance ?? 0;
-  const canLock = signedIn && guessing?.lock && legs > 0 && stake <= balance && !busy;
+  const canLock = signedIn && guessing?.lock && legs > 0 && !busy;
   const who = picking && roster.find(p => p.key === picking.key);
   const pick = key => e => setPicking({ key, el: e.currentTarget, rect: e.currentTarget.getBoundingClientRect() });
-  const multiplier = multiplierOf(legs);
   const cardsRef = useRef(null);
   const { scale, per } = useFitScale(cardsRef, roster.length);
-  const short = signedIn && stake > balance;
 
   const lock = async () => {
     setBusy(true); setError('');
     try {
       const res = await fetch('/api/transfer-bets', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stake, moves: list.map(([out, m]) => (m.in ? { out, in: m.in } : { out, to: m.to })) }) });
+        body: JSON.stringify({ moves: list.map(([out, m]) => (m.in ? { out, in: m.in } : { out, to: m.to })) }) });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Could not lock in the guess');
-      window.dispatchEvent(new Event('opval-wallet-changed'));
+      if (!res.ok) throw new Error(data.error ?? "Your guess wasn't saved. Try again.");
       setPlaced(data.bet);
       onPlaced(data);
     } catch (e) { setError(e.message); } finally { setBusy(false); }
@@ -180,15 +174,12 @@ export function TeamSheet({ team, contracts, guessing, onClose, onPlaced, signed
       </div>
 
       <footer className="guess-bar" data-ready={legs > 0}>
-        <div className="tier-switch guess-stake" role="group" aria-label="Stake in credits" style={{ '--n': STAKES.length }}>
-          {STAKES.map(s => <button key={s} type="button" className={stake === s ? 'primary' : undefined} aria-pressed={stake === s} disabled={signedIn && s > balance} onClick={() => setStake(s)}>{s}</button>)}
-        </div>
         <div className="guess-win" tabIndex={0} data-tip={legs
-          ? `${legs} calls: each player out, each player in. All ${legs} right pays ${multiplier}x your stake; each right call pays its share.`
-          : 'Tap a card to guess who replaces them or where they go.'}>
-          <small>{legs ? `${multiplier}x` : 'Payout'}</small><b>{legs ? payoutOf(stake, legs, legs) : 0}</b>
+          ? `Each move is two calls: who leaves and who comes in. Each right call scores ${TRANSFER.pointsPerLeg} points. Nothing is staked.`
+          : 'Tap a player to guess who replaces them or where they go.'}>
+          <small>{legs ? `Up to` : 'Points'}</small><b>{pointsOf(legs)} PTS</b>
         </div>
-        <button type="button" className="primary big" disabled={!canLock} onClick={lock}>{!signedIn ? 'Sign in to guess' : short ? `${balance} CR left` : busy ? 'Locking' : 'Lock in'}</button>
+        <button type="button" className="primary big" disabled={!canLock} onClick={lock}>{!signedIn ? 'Sign in to guess' : busy ? 'Locking' : 'Lock in'}</button>
         {error && <p className="error" role="alert">{error}</p>}
       </footer>
     </>}
@@ -210,7 +201,7 @@ export function GuessStrip({ guesses, onOpen }) {
         <Crest name={g.team} size={36} />
         <span className="guess-faces" aria-hidden="true">{g.legs.filter(l => l.type === 'join').map((l, i) => <Face key={i} player={l.player} team={l.team} scale={0.11} state={l.hit ? 'hit' : g.settledAt != null ? 'miss' : undefined} />)}</span>
         <span className="guess-pips" aria-label={`${hits} of ${g.legs.length} legs hit`}>{g.legs.map((l, i) => <i key={i} data-hit={l.hit} data-type={l.type} />)}</span>
-        <b>{g.settledAt != null ? g.payout : payoutOf(g.stake, g.legs.length, g.legs.length)}</b>
+        <b>{scoreOf(g).value} {scoreOf(g).unit}</b>
       </button></li>;
     })}
   </ul>;

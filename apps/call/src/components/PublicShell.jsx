@@ -1,15 +1,43 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { IconArrowsExchange, IconCalendarEvent, IconColumns } from '@tabler/icons-react';
+import { IconArrowsExchange, IconCalendarEvent, IconColumns, IconFlask, IconTopologyStar3, IconUser } from '@tabler/icons-react';
 import { playHome, showsPlayHome } from '../lib/playNavigation';
+import { useSession } from '../lib/sessionContext';
+import SessionProvider from './SessionProvider';
+import Sheet from './Sheet';
+import AccountForm, { AccountSettings } from './AccountForm';
 
-export default function PublicShell() {
+function AccountButton() {
+  const session = useSession();
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  const user = session.user;
+  return <div className="hud-right">
+    <button type="button" className={user ? 'icon hud-account' : 'hud-signin'} aria-label={user ? `Account: ${user.username}` : undefined} disabled={!session.checked} onClick={() => setOpen(true)}>
+      {user ? <IconUser size={20} stroke={2} aria-hidden="true" /> : 'Sign in'}
+    </button>
+    <Sheet open={open || Boolean(session.recoveryCode)} onClose={close} title={user && !session.recoveryCode ? user.username : 'Account'}>
+      {user && !session.recoveryCode
+        ? <div className="account-menu">
+          <p className="note">Signed in as <b>{user.username}</b>. Saved lineups and share links live on your account.</p>
+          <Link className="secondary" to="/saved" onClick={close}>Saved lineups</Link>
+          <AccountSettings onDone={close} />
+        </div>
+        : <AccountForm onDone={close} />}
+    </Sheet>
+  </div>;
+}
+
+function Frame() {
   const location = useLocation();
   const { pathname } = location;
+  const graph = /^\/graph\/?$/i.test(pathname);
   const play = showsPlayHome(location) || /^\/(play|u)(\/|$)/i.test(pathname);
   const tabs = [
     { to: '/', label: 'Rosters', Icon: IconArrowsExchange, active: !play && (pathname === '/' || /^\/(teams|players)\//i.test(pathname)) },
+    { to: '/graph', label: 'Graph', Icon: IconTopologyStar3, active: graph },
     { to: '/compare', label: 'Compare', Icon: IconColumns, active: /^\/compare\/?$/i.test(pathname) },
+    { to: '/sandbox', label: 'Sandbox', Icon: IconFlask, active: /^\/(sandbox|saved)\/?$/i.test(pathname) },
     { to: playHome, label: 'Play', Icon: IconCalendarEvent, active: play },
   ];
   useEffect(() => { window.scrollTo(0, 0); }, [pathname, play]);
@@ -24,13 +52,18 @@ export default function PublicShell() {
             </Link>
           ))}
         </nav>
+        <AccountButton />
       </header>
       <Outlet />
-      <footer className="public-foot">
+      {!graph && <footer className="public-foot">
         <span>Roster data from the Riot Games Global Contract Database.</span>
         <span>Fan project, not endorsed by Riot Games.</span>
         <Link to="/legal">Legal</Link>
-      </footer>
+      </footer>}
     </div>
   );
+}
+
+export default function PublicShell() {
+  return <SessionProvider><Frame /></SessionProvider>;
 }

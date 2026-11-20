@@ -88,6 +88,13 @@ export default {
     // HTML routes: the app shell for any client-side route.
     const wantsHtml = request.method === 'GET' && (request.headers.get('Accept') ?? '').includes('text/html');
     const asset = await env.ASSETS.fetch(wantsHtml ? new Request(new URL('/', url.origin), request) : request);
+    // Share links and the account's own pages are private: keep them out of search engines.
+    if (wantsHtml && /^\/(s\/|saved\/?$)/.test(url.pathname)) {
+      const out = secure(asset);
+      out.headers.set('X-Robots-Tag', 'noindex, nofollow');
+      out.headers.set('Cache-Control', 'private, no-store');
+      return out;
+    }
     return secure(asset);
   },
 };

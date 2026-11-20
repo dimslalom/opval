@@ -44,7 +44,7 @@ export default function MatchDashboard({ bingo, needsBingo }) {
     </section>
     <section className="dashboard-panel mini-leaderboard">
       <div className="dashboard-heading"><h2 className="section">Leaderboard</h2><span className="dashboard-eyebrow">Overall</span></div>
-      {failed ? <p className="note">Standings unavailable. <button className="link" onClick={() => setRetry(n => n + 1)}>Retry</button></p> : !standings ? <p className="note" role="status">Loading standings…</p> : entries.length === 0 ? <p className="note">No scores yet. Reveal a finished match to enter.</p> : <>
+      {failed ? <p className="note">Standings aren't available right now. <button className="link" onClick={() => setRetry(n => n + 1)}>Try again</button></p> : !standings ? <p className="note" role="status">Loading standings…</p> : entries.length === 0 ? <p className="note">No scores yet. Reveal a finished match to enter.</p> : <>
         <ol>{entries.map(entry => <li key={entry.username} data-self={entry.username === account.user?.username}><span className="mini-rank">{entry.rank}</span><span className="mini-name">{entry.username}{entry.username === account.user?.username && <small> You</small>}</span><strong>{number(entry.points)}</strong></li>)}</ol>
         {standings.me && <div className="mini-own"><span>Your place <strong>{standings.me.rank ? `#${standings.me.rank}` : 'Unranked'}</strong></span><strong>{number(standings.me.points)} <small>PTS</small></strong></div>}
       </>}

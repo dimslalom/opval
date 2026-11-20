@@ -22,7 +22,7 @@ function length(seconds) {
 // (or an empty track) picks a date; a bar opens its evidence. The date input and the change list
 // on the page are the keyboard and screen-reader equivalents.
 // rows: [{ key, label, tag?, current, tenures }]; current rows come first, then former ones.
-export default function RosterTimeline({ rows, trackedSince, latestRead, reads = [], bands = [], at, selectedId, onPickDate, onSelect }) {
+export default function RosterTimeline({ rows, trackedSince, latestRead, reads = [], bands = [], at, selectedId, onPickDate, onSelect, hotKey, onHover }) {
   const [allFormer, setAllFormer] = useState(false);
   const to = latestRead;
   const from = Math.min(trackedSince, to - 14 * DAY);
@@ -49,7 +49,8 @@ export default function RosterTimeline({ rows, trackedSince, latestRead, reads =
     {years.map(({ y, t }) => <span key={y} className="tl-year" style={{ left: pct(t) }} />)}
   </>;
 
-  const row = r => <div key={r.key} className="tl-row">
+  const row = r => <div key={r.key} className="tl-row" data-hot={hotKey === r.key}
+    onMouseEnter={onHover && (() => onHover(r.key))} onMouseLeave={onHover && (() => onHover(null))}>
     <span className="tl-label"><span className="tl-name">{r.label}</span>{r.tag && <small>{r.tag}</small>}</span>
     <div className="tl-track" onClick={onPickDate ? pick : undefined}>
       {grid}

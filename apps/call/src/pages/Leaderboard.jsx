@@ -8,6 +8,7 @@ const BOARDS = [
   { id: 'overall', label: 'Overall' },
   { id: 'calls', label: 'Calls' },
   { id: 'cards', label: 'Cards' },
+  { id: 'transfers', label: 'Transfers' },
   { id: 'bingo', label: 'Bingo' },
 ];
 const number = value => new Intl.NumberFormat().format(value);

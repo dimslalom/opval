@@ -1,21 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import cards from '../shared/src/data/cards.json' with { type: 'json' };
-import { buildReplay } from '../src/engine/fantasy/replay.js';
 import { scoreSeries } from '../src/engine/shared/scoring.js';
 import { resolveCall, seriesFacts, streakMultiplier } from '../src/engine/collect/calls.js';
-import { buyBingoCard, buyPack, callRecord, createCollection, rescoreCalls, resolveMatchday, resolveSeries, setCall, settleCalls, swapFee, swapTracked, totalScore, trackedAt } from '../src/engine/collect/game.js';
-import { openPack, starterCollection } from '../src/engine/collect/packs.js';
+import { buyBingoCard, buyPack, callRecord, createCollection, rescoreCalls, resolveSeries, setCall, settleCalls, swapFee, swapTracked, totalScore, trackedAt } from '../src/engine/collect/game.js';
+import { openPack } from '../src/engine/collect/packs.js';
 import { BINGO, CALL, ECONOMY, TRACKED_MAX } from '../src/engine/collect/rules.js';
-import { synthMatches } from './fixtures/fantasySynth.js';
+import { synthMatches, synthPlayers } from './fixtures/synthSeries.js';
 
-const replay = () => buildReplay({ matches: synthMatches(1), cards });
+// A synthetic tournament: players by pid, and each round's series (the first team always wins 2-0).
+const replay = () => {
+  const matches = synthMatches(1);
+  const rounds = [...new Set(matches.map(m => m.roundId))];
+  return {
+    players: Object.fromEntries(synthPlayers().map(p => [p.pid, p])),
+    matchdays: rounds.map(id => ({ matches: matches.filter(m => m.roundId === id) })),
+  };
+};
 const poolOf = r => Object.values(r.players).filter(p => p.card).map(p => ({ pid: p.pid, tier: p.card.palette }));
 const teamOfFn = r => pid => r.players[pid].team;
-const withCards = (state, pool) => {
-  const hand = starterCollection(state.seed, pool);
-  return { ...state, collection: hand, tracked: hand, freePacks: 0, trackedLog: [{ t: 0, tracked: hand }] };
-};
+const withCards = (state, pool, hand = pool.slice(0, TRACKED_MAX).map(e => e.pid)) =>
+  ({ ...state, collection: hand, tracked: hand, freePacks: 0, trackedLog: [{ t: 0, tracked: hand }] });
 
 test('streak multiplier grows 10% per right call and caps at 1.5', () => {
   assert.equal(streakMultiplier(0), 1);
@@ -76,20 +80,15 @@ test('new accounts start with no cards and two free packs', () => {
   assert.deepEqual(state.trackedLog, [{ t: 0, tracked: [] }]);
 });
 
-test('legacy starter hand helper remains deterministic for replay fixtures', () => {
+test('packs are fixed by seed and pack number, never repeat a card you own, and refund when the pool runs dry', () => {
   const pool = poolOf(replay());
-  const a = starterCollection(7, pool);
-  assert.equal(new Set(a).size, ECONOMY.starterCards);
-  assert.deepEqual(a, starterCollection(7, pool));
-  assert.notDeepEqual(a, starterCollection(8, pool));
-});
-
-test('packs never repeat a card you own and refund when the pool runs dry', () => {
-  const pool = poolOf(replay());
-  const owned = starterCollection(3, pool);
+  const owned = pool.slice(0, 10).map(e => e.pid);
   const { cards: got } = openPack(3, 0, pool, owned);
   assert.equal(got.length, ECONOMY.packSize);
   assert.ok(got.every(pid => !owned.includes(pid)));
+  assert.deepEqual(openPack(3, 0, pool, owned).cards, got);
+  assert.notDeepEqual(openPack(4, 0, pool, owned).cards, got);
+  assert.notDeepEqual(openPack(3, 1, pool, owned).cards, got);
   const all = pool.map(e => e.pid);
   const dry = openPack(3, 1, pool, all);
   assert.equal(dry.cards.length, 0);
@@ -141,38 +140,34 @@ test('two free packs fill the tracked hand, then packs cost credits', () => {
   assert.equal(paid.state.tracked.length, TRACKED_MAX);
 });
 
-test('a full replay: calls and Tracked points both land, credits track points, skipped calls do not break a streak', () => {
+test('calls and Tracked points both land, credits track points, and skipped calls do not break a streak', () => {
   const r = replay();
-  const pool = poolOf(r);
-  let s = withCards(createCollection({ seed: 9, now: 0 }), pool);
-  const teamOf = teamOfFn(r);
-  let totalCredits = 0;
-  for (const md of r.matchdays) {
-    // call the first team in each series; skip every third series
-    md.matches.forEach((series, i) => { if (i % 3 !== 2) s = setCall(s, series.matchId, { winner: series.teams[0].tag }); });
-    const out = resolveMatchday(s, md, { teamOf });
-    s = out.state;
-    totalCredits += out.report.total;
-    assert.equal(out.report.total, out.report.callPoints + out.report.trackedPoints);
-    assert.ok(out.report.callPoints >= 0);
-    assert.ok(out.report.callsRight <= out.report.callsMade);
+  let s = withCards(createCollection({ seed: 9, now: 0 }), poolOf(r));
+  const series = r.matchdays.flatMap(md => md.matches);
+  // Call the first team in each series; skip every third.
+  series.forEach((m, i) => { if (i % 3 !== 2) s = setCall(s, m.matchId, { winner: m.teams[0].tag }); });
+  for (const m of series) {
+    const { state, report } = resolveSeries(s, m, { teamOf: teamOfFn(r) });
+    assert.equal(report.total, report.callPoints + report.trackedPoints);
+    assert.ok(report.callPoints >= 0);
+    s = state;
   }
-  // synthetic series are won by the first team, so every call made was right
-  assert.ok(s.streak > 5);
-  assert.equal(s.credits, totalCredits);
-  assert.equal(totalScore(s), totalCredits);
-  assert.equal(s.history.length, r.matchdays.length);
+  // The first team always wins, so every call was right, and the skipped series never reset the streak.
+  assert.equal(s.streak, series.filter((_, i) => i % 3 !== 2).length);
+  assert.equal(s.credits, totalScore(s));
+  assert.equal(s.history.length, series.length);
 });
 
-test('Tracked scoring only counts the ten you track', () => {
+test('Tracked scoring only counts the cards you track', () => {
   const r = replay();
-  const pool = poolOf(r);
-  const s = withCards(createCollection({ seed: 4, now: 0 }), pool);
-  const md = r.matchdays[0];
-  const out = resolveMatchday(s, md, { teamOf: teamOfFn(r) });
-  for (const line of out.report.trackedLines) assert.ok(s.tracked.includes(line.pid));
-  const noneTracked = resolveMatchday({ ...s, tracked: [] }, md, { teamOf: teamOfFn(r) });
-  assert.equal(noneTracked.report.trackedPoints, 0);
+  const series = r.matchdays[0].matches[0];
+  const playing = [...new Set(series.maps.flatMap(m => m.players.map(p => p.vlrId)))];
+  const benched = poolOf(r).map(e => e.pid).filter(pid => !playing.includes(pid));
+  const s = withCards(createCollection({ seed: 4, now: 0 }), [], [...playing.slice(0, 3), ...benched.slice(0, TRACKED_MAX - 3)]);
+  const out = resolveSeries(s, series, { teamOf: teamOfFn(r) });
+  assert.deepEqual(out.report.trackedLines.map(l => l.pid).sort((a, b) => a - b), playing.slice(0, 3).sort((a, b) => a - b));
+  const none = resolveSeries(withCards(createCollection({ seed: 4, now: 0 }), [], benched.slice(0, TRACKED_MAX)), series, { teamOf: teamOfFn(r) });
+  assert.equal(none.report.trackedPoints, 0);
 });
 
 test('resolveSeries scores one match once: reveal is idempotent and pays credits', () => {

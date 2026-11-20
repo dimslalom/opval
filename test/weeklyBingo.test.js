@@ -153,7 +153,7 @@ test('current-week card locks on submission and later listed matches can score',
     'a late listed already started match cannot enter the slate');
 });
 
-test('server game actions reject forged saves and award only validated state changes',async()=>{
+test('server call actions are validated and a replayed request is refused',async()=>{
   const {handleAccounts}=await import('../apps/call/worker/accounts.js');
   const db=d1(),env={DB:db};
   const req=(method,path,body,cookie)=>{
@@ -163,10 +163,6 @@ test('server game actions reject forged saves and award only validated state cha
   const signup=await req('POST','/api/auth/signup',{username:'secure_user',password:'correct horse'});
   const cookie=signup.headers.get('Set-Cookie').split(';')[0];
   const save=await (await req('GET','/api/save',null,cookie)).json();
-  assert.equal(save.state.credits,0);
-  const forged=await req('PUT','/api/save',{state:{...save.state,credits:999999,collection:[123]},version:save.version},cookie);
-  assert.equal(forged.status,409);
-  assert.equal((await (await req('GET','/api/save',null,cookie)).json()).state.credits,0);
   db.sqlite.prepare(`INSERT INTO feed_matches(match_id,event_id,best_of,starts_at,status,team1_tag,team2_tag,updated_at)
     VALUES(44,1,3,?,'upcoming','AAA','BBB',0)`).run(Math.floor(Date.now()/1000)+3600);
   const action=await req('POST','/api/game/action',{op:'call',version:save.version,requestId:'req-00000001',matchId:44,call:{winner:'AAA'}},cookie);

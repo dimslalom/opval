@@ -22,7 +22,7 @@ export async function gameAction(user,env,body,t=now()) {
   const {op,version,requestId}=body??{};
   if (!Number.isInteger(version)||version<1||typeof requestId!=='string'||!/^[-\w]{8,80}$/.test(requestId)) return reply({error:'bad action'},400);
   const row=await env.DB.prepare('SELECT state,version FROM saves WHERE user_id=?').bind(user.id).first();
-  if (!row||row.version!==version) return reply({error:'Game changed elsewhere',state:row?JSON.parse(row.state):null,version:row?.version??0},409);
+  if (!row||row.version!==version) return reply({error:'Your game changed in another tab or device. Reload to see the latest.',state:row?JSON.parse(row.state):null,version:row?.version??0},409);
   const wallet=await ensureWallet(env.DB,user.id,t);
   const old=safeState({...JSON.parse(row.state),credits:wallet.balance});
   const {pool,byId}=await poolOf(env.DB);
@@ -39,7 +39,7 @@ export async function gameAction(user,env,body,t=now()) {
       const id=Number(body.matchId);
       if (!Number.isSafeInteger(id)) throw new Error('bad match');
       const match=await env.DB.prepare('SELECT status,starts_at,team1_tag,team2_tag,best_of FROM feed_matches WHERE match_id=?').bind(id).first();
-      if (!match||match.status!=='upcoming'||match.starts_at<=t) throw new Error('Match is locked');
+      if (!match||match.status!=='upcoming'||match.starts_at<=t) throw new Error('This match has started, so calls are locked.');
       const choice=body.call;
       if (!choice||![match.team1_tag,match.team2_tag].includes(choice.winner)) throw new Error('bad winner');
       if (choice.score!=null&&(!Array.isArray(choice.score)||choice.score.length!==2||!choice.score.every(n=>Number.isInteger(n)&&n>=0&&n<=3))) throw new Error('bad score');
@@ -49,7 +49,7 @@ export async function gameAction(user,env,body,t=now()) {
       const id=Number(body.matchId);
       if (!Number.isSafeInteger(id)) throw new Error('bad match');
       const series=await loadMatch(env,id);
-      if (!series||series.status!=='final'||series.statsRank<3) throw new Error('Result is not ready');
+      if (!series||series.status!=='final'||series.statsRank<3) throw new Error("The result isn't ready yet. Try again in a few minutes.");
       const outcome=resolveSeries(old,series,{teamOf:pid=>byId.get(pid)?.team??null});
       next=outcome.state;extra={report:outcome.report};
     } else return reply({error:'unknown action'},400);
@@ -68,7 +68,7 @@ export async function gameAction(user,env,body,t=now()) {
         .bind(user.id,entryKey,user.id,user.id,entryKey),
     );
     const results=await env.DB.batch(steps);
-    if (results?.[0]?.meta?.changes===0) return reply({error:'Game changed elsewhere'},409);
-  } catch {return reply({error:'Action conflicted; reload your game'},409);}
+    if (results?.[0]?.meta?.changes===0) return reply({error:'Your game changed in another tab or device. Reload to see the latest.'},409);
+  } catch {return reply({error:"That didn't save because your game changed somewhere else. Reload and try again."},409);}
   return reply({ok:true,state:next,version:version+1,...extra});
 }
