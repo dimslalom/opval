@@ -14,6 +14,7 @@ const Roster = lazy(() => import('./pages/Roster'));
 const Legal = lazy(() => import('./pages/Legal'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Rosters = lazy(() => import('./pages/Rosters'));
+const RosterNetwork = lazy(() => import('./pages/RosterNetwork'));
 const Team = lazy(() => import('./pages/Team'));
 const Player = lazy(() => import('./pages/Player'));
 const Compare = lazy(() => import('./pages/Compare'));
@@ -53,6 +54,7 @@ export default function App() {
           <BrowserRouter>
             <Routes>
               <Route element={<PublicShell />}>
+                <Route path="graph" element={page(<RosterNetwork />)} />
                 <Route element={<PublicPage />}>
                   <Route path="teams/:teamId/:slug?" element={page(<Team />)} />
                   <Route path="players/:personId/:slug?" element={page(<Player />)} />

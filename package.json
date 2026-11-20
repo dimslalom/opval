@@ -18,11 +18,14 @@
     "@tabler/icons-react": "^3.48.0",
     "animejs": "^4.5.0",
     "flag-icons": "^7.5.0",
+    "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.1",
     "html-to-image": "^1.11.13",
     "motion": "^12.43.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.18.2",
+    "sigma": "^3.0.3",
     "three": "^0.186.1"
   },
   "devDependencies": {

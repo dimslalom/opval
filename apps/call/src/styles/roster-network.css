@@ -1,0 +1,1165 @@
+.network-page {
+  position: relative;
+  flex: 1;
+  isolation: isolate;
+  background: var(--bg);
+  --network-gutter: var(--sp-4);
+  --network-top: var(--network-gutter);
+  --network-bottom: calc(var(--network-gutter) + var(--safe-b, 0px));
+  --network-left: calc(var(--network-gutter) + var(--safe-l, 0px));
+  --network-right: calc(var(--network-gutter) + var(--safe-r, 0px));
+  --network-overlay-edge: rgba(255, 255, 255, 0.16);
+}
+
+.network-map {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.network-canvas-wrap {
+  position: absolute;
+  inset: 0;
+}
+
+.network-canvas {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.network-overlay-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* A single neutral island for graph controls and the inspector. */
+.network-hud {
+  position: absolute;
+  z-index: 3;
+  top: var(--network-top);
+  right: var(--network-gutter);
+  width: min(312px, calc(100% - 2 * var(--network-gutter)));
+  max-height: calc(100% - var(--network-top) - var(--network-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: var(--sp-3);
+  border: 1px solid var(--network-overlay-edge);
+  border-radius: var(--r-sheet);
+  background: var(--surface-flyout);
+  box-shadow: var(--shadow-overlay);
+  color: var(--ink);
+}
+
+/* Sections are separated by space; settings and the inspector get a rule because they are a different kind of content. */
+.network-controls { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.network-toolbar,
+.network-extent {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+.network-toolbar {
+  flex: none;
+  gap: var(--sp-2);
+}
+
+.network-extent:empty {
+  display: none;
+}
+
+/* Toolbar actions: the same outline pill as .team-chip, filled with --plate so it reads over the canvas. */
+.network-back,
+.network-search-toggle,
+.network-clear {
+  display: inline-flex;
+  gap: var(--sp-2);
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-min);
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--line-bracket);
+  border-radius: 999px;
+  background: var(--plate);
+  color: var(--ink);
+  font: 700 var(--fs-label) var(--font-mono);
+  letter-spacing: var(--track-caps);
+  text-decoration: none;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.network-back:hover,
+.network-search-toggle:hover,
+.network-clear:hover,
+.network-search-toggle[aria-expanded='true'] {
+  border-color: var(--ink);
+}
+
+.network-search-toggle {
+  flex: 1;
+}
+
+.network-page > :is(.loading, .error) {
+  position: absolute;
+  inset: 40% var(--network-left) auto;
+  text-align: center;
+}
+
+/* Segmented controls are the app's .tier-switch; only the sizing differs here. */
+.network-page .tier-switch button {
+  padding: 0 var(--sp-2);
+  cursor: pointer;
+}
+
+.network-depth button {
+  padding: 0 var(--sp-4);
+}
+
+.network-trail {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.network-trail ol {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.network-trail li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.network-trail li + li::before {
+  content: '';
+  flex: none;
+  width: 1px;
+  height: var(--sp-3);
+  background: var(--line-bracket);
+}
+
+.network-trail button {
+  max-width: 120px;
+  min-height: 36px;
+  padding: 0 var(--sp-2);
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 600 var(--fs-label) var(--font-body);
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px var(--bg);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.network-trail button:hover,
+.network-trail button[aria-current] {
+  color: var(--ink);
+}
+
+/* Spotlight chip: a pill with the clear button as a circle inside it. */
+.network-chip {
+  flex: none;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: 36px;
+  max-width: 100%;
+  padding: 0 var(--sp-1) 0 var(--sp-3);
+  border: 1px solid var(--line-bracket);
+  border-radius: 999px;
+  background: var(--plate);
+  color: var(--ink);
+  font: 600 var(--fs-label) var(--font-body);
+}
+
+.network-chip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-chip button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.network-chip button:hover {
+  background: var(--surface-hi);
+  color: var(--ink);
+}
+
+.network-highlights h2 {
+  margin: 0 0 var(--sp-1);
+  color: var(--muted);
+  font: 700 var(--fs-micro) var(--font-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+}
+
+.network-stories {
+  display: grid;
+  gap: 2px;
+  /* Rows pull out by their own padding so their text lines up with the other sections. */
+  margin: 0 calc(-1 * var(--sp-2));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.network-stories > li {
+  flex: none;
+}
+
+.network-story {
+  display: grid;
+  width: 100%;
+  padding: var(--sp-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-tile);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.network-story:hover {
+  background: var(--surface-hi);
+}
+
+.network-story[aria-pressed='true'] {
+  --glass: var(--ruby);
+  --glass-ink: #fff;
+  --glass-shadow: rgba(0, 0, 0, 0.4);
+}
+
+.network-story[aria-pressed='true'] :is(span, small) {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.network-story span {
+  color: var(--muted);
+  font: 700 var(--fs-micro) var(--font-mono);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.network-story strong,
+.network-story small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-story strong {
+  font: 700 var(--fs-body) var(--font-body);
+}
+
+.network-story small {
+  color: var(--muted);
+  font: 500 var(--fs-label) var(--font-body);
+}
+
+.network-timeline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  width: 100%;
+  color: var(--ink);
+}
+
+.network-timeline .tier-switch {
+  flex: none;
+}
+
+.network-timeline .tier-switch button {
+  min-height: 36px;
+}
+
+.network-play {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-alt);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.network-play:hover {
+  background: var(--surface-hi);
+}
+
+.network-timeline-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font: 700 var(--fs-lead) var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-timeline-track {
+  position: relative;
+  display: grid;
+  flex: 1 0 100%;
+  height: 38px;
+}
+
+.network-timeline-track > * {
+  grid-area: 1 / 1;
+}
+
+.network-histogram {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  padding-bottom: 14px;
+}
+
+.network-histogram i {
+  flex: 1;
+  min-width: 0;
+  background: var(--line-bracket);
+}
+
+.network-histogram i.is-on {
+  background: var(--muted);
+}
+
+.network-timeline input[type='range'] {
+  align-self: end;
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+/* Hover card: an overlay */
+.network-hover-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 236px;
+  padding: var(--sp-3);
+  border: 1px solid var(--network-overlay-edge);
+  border-radius: var(--r-tile);
+  background: var(--surface-flyout);
+  box-shadow: var(--shadow-overlay);
+  pointer-events: none;
+  will-change: transform;
+  animation: network-pop 140ms var(--ease-out);
+}
+
+@keyframes network-pop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.network-hover-avatar {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ring, var(--muted));
+  background: var(--surface-alt);
+  color: var(--ink);
+  font: 700 var(--fs-body) var(--font-display);
+}
+
+.network-hover-avatar.team {
+  padding: var(--sp-2);
+}
+
+.network-hover-avatar.team img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.network-hover-avatar.player img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 14%;
+}
+
+.network-hover-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.network-hover-name {
+  color: var(--ink);
+  font: 700 var(--fs-body) / 1.15 var(--font-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.network-hover-sub {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  margin-top: var(--sp-1);
+  color: var(--muted);
+  font: 600 var(--fs-label) / 1.2 var(--font-body);
+}
+
+.network-hover-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--ink);
+}
+
+.network-hover-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dot, var(--muted));
+}
+
+.network-hover-team {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.network-hover-live {
+  color: var(--win);
+  font-weight: 700;
+}
+
+.network-counts,
+.network-legend {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.network-counts {
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-1) var(--sp-2);
+}
+
+.network-counts span {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  color: var(--muted);
+  font-size: var(--fs-label);
+}
+
+.network-counts b {
+  color: var(--ink);
+  font: 700 var(--fs-title) / 1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.network-legend {
+  gap: var(--sp-2);
+  padding: 0;
+  list-style: none;
+}
+
+.network-legend-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 36px;
+  padding: 0 var(--sp-3) 0 var(--sp-2);
+  border: 1px solid var(--line-bracket);
+  border-radius: 999px;
+  background: var(--plate);
+  color: var(--ink);
+  font: 600 var(--fs-label) var(--font-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.network-legend-btn:hover,
+.network-legend-btn.is-active {
+  border-color: var(--ink);
+}
+
+.network-legend-btn.is-dim {
+  opacity: 0.45;
+}
+
+.network-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot, var(--muted));
+}
+
+.network-tools {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.network-tools button {
+  display: grid;
+  place-items: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  padding: 0;
+  border: 1px solid var(--line-bracket);
+  border-radius: 50%;
+  background: var(--plate);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.network-tools button:hover,
+.network-tools button.is-active {
+  border-color: var(--ink);
+}
+
+.network-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.network-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.network-settings-head h3 {
+  margin: 0;
+  color: var(--muted);
+  font: 700 var(--fs-micro) var(--font-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+}
+
+.network-settings-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.network-settings-close:hover {
+  background: var(--surface-hi);
+  color: var(--ink);
+}
+
+.network-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.network-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.network-settings-label {
+  color: var(--ink);
+  font: 600 var(--fs-label) var(--font-body);
+}
+
+.network-settings-value {
+  color: var(--muted);
+  font: 600 var(--fs-label) var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.network-settings input[type='range'] {
+  width: 100%;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+.network-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  cursor: pointer;
+}
+
+.network-toggle strong {
+  display: block;
+  color: var(--ink);
+  font: 600 var(--fs-label) / 1.2 var(--font-body);
+}
+
+.network-toggle small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font: 500 var(--fs-micro) / 1.2 var(--font-body);
+}
+
+.network-toggle input[type='checkbox'] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+.network-reset-layout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-bracket);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: 600 var(--fs-label) var(--font-body);
+  cursor: pointer;
+}
+
+.network-reset-layout:hover {
+  border-color: var(--ink);
+}
+
+.network-message {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(80%, 300px);
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-tile);
+  background: var(--plate);
+  color: var(--ink);
+  text-align: center;
+}
+
+.network-inspector {
+  display: flex;
+  flex-direction: column;
+  max-height: min(46dvh, 430px);
+  min-height: 152px;
+  overflow: hidden;
+  margin: 0 calc(-1 * var(--sp-3));
+  border-block: 1px solid var(--line);
+  color: var(--ink);
+}
+
+/* When open, the inspector is the thing you asked for: it comes straight after the toolbar. */
+.network-hud > .network-toolbar { order: 0; }
+.network-hud > .network-inspector { order: 1; flex: none; }
+.network-hud > .network-controls { order: 2; }
+.network-hud > .network-settings { order: 3; }
+
+.network-inspector[hidden] {
+  display: none;
+}
+
+.network-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-3);
+  padding: 0 var(--sp-4);
+  min-height: var(--tap-min);
+  border: 1px solid var(--line-bracket);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface);
+  transition: border-color var(--dur-micro);
+}
+
+.network-search:focus-within {
+  border-color: var(--ink);
+}
+
+.network-search svg {
+  flex: none;
+}
+
+.network-search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-body);
+  outline: none;
+  color-scheme: dark;
+}
+
+.network-search input::placeholder {
+  color: var(--muted);
+}
+
+@media (pointer: coarse) {
+  .network-search input {
+    font-size: 16px;
+  }
+}
+
+.network-kbd {
+  flex: none;
+  color: var(--faint);
+  font: 700 var(--fs-micro) var(--font-mono);
+}
+
+.network-inspector-body {
+  min-height: 0;
+  overflow: auto;
+  border-top: 1px solid var(--line);
+  scrollbar-color: var(--line-bracket) transparent;
+}
+
+.network-list-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-4) var(--sp-2);
+  color: var(--muted);
+  font: 700 var(--fs-micro) var(--font-mono);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.network-list-title :is(h2, h3) {
+  margin: 0;
+  font: inherit;
+}
+
+.network-list-title span {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Node avatars */
+.network-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1.5px solid var(--ring, var(--muted));
+  background: var(--surface-alt);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.network-avatar-sm {
+  width: 30px;
+  height: 30px;
+  font-size: var(--fs-micro);
+}
+
+.network-avatar-lg {
+  width: 52px;
+  height: 52px;
+  border-width: 2px;
+  font-size: var(--fs-lead);
+}
+
+.network-avatar-team {
+  padding: var(--sp-1);
+}
+
+.network-avatar-team.network-avatar-lg {
+  padding: var(--sp-2);
+}
+
+.network-avatar-team img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.network-avatar-player img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 14%;
+}
+
+/* Directory, connections and route share one hairline-split row */
+.network-entries,
+.network-route,
+.network-stints,
+.network-stints ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.network-entries li,
+.network-route li,
+.network-stints > li {
+  border-bottom: 1px solid var(--line);
+}
+
+.network-entries button,
+.network-route button,
+.network-stints summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--sp-2) var(--sp-4);
+  overflow-wrap: anywhere;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+
+.network-entries button:hover,
+.network-route button:hover,
+.network-stints summary:hover {
+  background: var(--surface-hi);
+}
+
+.network-entries button:focus-visible,
+.network-route button:focus-visible,
+.network-stints summary:focus-visible {
+  outline-offset: -3px !important;
+}
+
+.network-entry-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.network-entry-text strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.network-entry-text small {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+}
+
+.network-entry-count {
+  margin-left: auto;
+  color: var(--muted);
+  font: 600 var(--fs-label) var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Profile header */
+.network-profile {
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+
+.network-profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.network-profile-title {
+  min-width: 0;
+}
+
+.network-profile h2 {
+  margin: 0 0 var(--sp-1);
+  font: 700 var(--fs-heading) / 1 var(--font-display);
+  letter-spacing: var(--track-display);
+  overflow-wrap: anywhere;
+}
+
+.network-profile p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-label);
+}
+
+.network-league-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--ink);
+}
+
+.network-league-pill::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot, var(--muted));
+}
+
+/* Rides on the app's .secondary glass pill. */
+.network-profile-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--tap-min);
+  padding: 0 var(--sp-5);
+  border-radius: 999px;
+  text-decoration: none;
+}
+
+.network-text-button,
+.network-stints a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  width: fit-content;
+  color: var(--ink);
+  font-size: var(--fs-label);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.network-text-button {
+  min-height: 36px;
+  margin: var(--sp-1) var(--sp-4);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.network-profile .network-text-button {
+  margin: 0;
+}
+
+.network-stint-name {
+  margin-right: auto;
+  min-width: 0;
+}
+
+.network-latest-pill {
+  color: var(--win);
+  font: 700 var(--fs-micro) var(--font-mono);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.network-stints summary svg {
+  flex: none;
+  color: var(--muted);
+  transition: transform var(--dur-micro);
+}
+
+.network-stints summary::-webkit-details-marker {
+  display: none;
+}
+
+.network-stints details[open] summary svg {
+  transform: rotate(90deg);
+}
+
+/* Aligned under the name: 16px inset + 30px avatar + 12px gap */
+.network-stints ul {
+  padding: 0 var(--sp-4) var(--sp-2) calc(var(--sp-4) + 30px + var(--sp-3));
+}
+
+.network-stints ul li {
+  display: grid;
+  gap: 2px;
+  padding: var(--sp-2) 0;
+  color: var(--muted);
+  font-size: var(--fs-label);
+}
+
+.network-empty {
+  margin: 0;
+  padding: var(--sp-4);
+  color: var(--muted);
+}
+
+.network-hint {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--muted);
+  font-size: var(--fs-label);
+}
+
+.network-route small {
+  color: var(--muted);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+}
+
+/* Stint bar under each connection: the track is data, so it stays */
+.network-stints summary {
+  position: relative;
+  padding-bottom: var(--sp-4);
+}
+
+.network-span {
+  position: absolute;
+  left: var(--sp-4);
+  right: var(--sp-4);
+  bottom: 6px;
+  height: 3px;
+  background: var(--line);
+  pointer-events: none;
+}
+
+.network-span i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+  background: var(--muted);
+}
+
+.network-span i.is-latest {
+  background: var(--seg, var(--ink));
+}
+
+.network-source {
+  color: var(--muted);
+  font: 600 var(--fs-label) var(--font-body);
+}
+
+.network-source summary {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-bracket);
+  border-radius: 999px;
+  background: var(--plate);
+  list-style: none;
+  cursor: pointer;
+}
+
+.network-source summary::-webkit-details-marker {
+  display: none;
+}
+
+.network-source summary:hover,
+.network-source[open] summary {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.network-source > div {
+  padding: var(--sp-2);
+  font-weight: 400;
+}
+
+.network-source p {
+  display: block;
+  margin: 0 0 var(--sp-2);
+}
+
+.network-source a {
+  color: var(--ink);
+}
+
+
+@media (max-width: 720px) {
+  .network-page { --network-gutter: var(--sp-2); }
+  /* The island docks along the bottom edge, full width, and scrolls inside itself. */
+  .network-hud {
+    top: auto;
+    left: var(--network-left);
+    right: var(--network-right);
+    bottom: var(--network-bottom);
+    width: auto;
+    max-height: 46dvh;
+  }
+  .network-inspector { max-height: 34dvh; }
+  .network-hover-card { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .network-hover-card,
+  .network-settings {
+    animation: none;
+  }
+  .network-stints summary svg {
+    transition: none;
+  }
+}

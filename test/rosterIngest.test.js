@@ -4,6 +4,7 @@ import { d1 } from './helpers/d1Shim.js';
 import { ingestRosterRun } from '../worker/roster/ingest.js';
 import { handleRosterV2 } from '../worker/roster/api.js';
 import { handleFeed } from '../worker/feed/routes.js';
+import { createNetwork, filterNetwork, neighborhood } from '../apps/call/src/lib/rosterNetwork.js';
 
 // Synthetic fixture teams and handles; never production facts.
 const LEAGUES = ['AMERICAS', 'EMEA'];
@@ -13,6 +14,41 @@ const run = (db, rows, runKey, observedAt) => ingestRosterRun(db, { sourceId: 'r
 const members = async db => (await db.prepare(`SELECT p.handle,t.tag,m.kind,m.start_after,m.start_before,m.last_seen_at,m.end_before
   FROM roster_memberships m JOIN roster_people p ON p.id=m.person_id JOIN roster_teams t ON t.id=m.team_id ORDER BY m.id`).all()).results;
 const get = async (db, path) => (await handleRosterV2(db, new URL(`https://x.test${path}`))).json();
+
+test('global graph preserves repeat stints, with distinct links and filterable neighborhoods', async () => {
+  const db = d1();
+  const at = (year, month = 0) => Date.UTC(year, month, 1) / 1000;
+  await run(db, base(), 'r1', at(2024));
+  const moved = base().map(player => player.player === 'bravo' ? row('bravo', 'E1') : player);
+  await run(db, moved, 'r2', at(2025));
+  await run(db, base(), 'r3', at(2026));
+  await run(db, base(), 'r4', at(2026, 1));
+
+  const data = await get(db, '/api/roster/v2/graph');
+  assert.equal(data.sources[0].id, 'riot-gcd');
+  assert.equal(data.players.length, 3);
+  const bravo = data.players.find(player => player.handle === 'bravo');
+  const home = data.teams.find(team => team.tag === 'A1');
+  const away = data.teams.find(team => team.tag === 'E1');
+  const stints = data.stints.filter(stint => stint.personId === bravo.id && stint.teamId === home.id);
+  assert.deepEqual(stints.map(s => [s.firstSeenAt, s.lastSeenAt, s.latest]),
+    [[at(2024), at(2024), false], [at(2026), at(2026, 1), true]]);
+
+  const playerKey = `player-${bravo.id}`;
+  const homeKey = `team-${home.id}`;
+  const awayKey = `team-${away.id}`;
+  const network = createNetwork(data);
+  const all = filterNetwork(network, {});
+  assert.equal(all.adjacency.get(playerKey).length, 2);
+  assert.equal(neighborhood(all.adjacency, homeKey, 1).nodes.has(awayKey), false);
+  assert.equal(neighborhood(all.adjacency, homeKey, 2).nodes.has(awayKey), true);
+  assert.equal(filterNetwork(network, { period: '2025' }).adjacency.get(playerKey)[0].team, awayKey);
+  assert.equal(filterNetwork(network, { period: 'latest' }).adjacency.get(playerKey)[0].team, homeKey);
+  assert.equal(filterNetwork(network, { period: 'latest', league: 'EMEA' }).adjacency.has(playerKey), false);
+
+  await db.prepare("UPDATE roster_sources SET enabled=0 WHERE id='riot-gcd'").run();
+  assert.deepEqual((await get(db, '/api/roster/v2/graph')).stints, []);
+});
 
 test('baseline, unchanged read, transfer, departure and rejoin', async () => {
   const db = d1();

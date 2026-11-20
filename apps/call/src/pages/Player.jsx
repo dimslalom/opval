@@ -5,6 +5,7 @@ import RosterSource from '../components/RosterSource';
 import RosterTimeline from '../components/RosterTimeline';
 import RosterEvidence from '../components/RosterEvidence';
 import { teamPath, title, useRoster, windowText } from '../lib/roster';
+import { graphPath } from '../lib/rosterNetwork';
 
 // One person's tenures across tracked teams. Anything before tracking or outside the tracked
 // leagues is simply not here, and the page says so.
@@ -31,7 +32,9 @@ export default function Player() {
   const newestFirst = [...memberships].sort((a, b) => b.joined.by - a.joined.by);
 
   return <section className="roster-page team-page">
-    <p className="team-back"><Link to="/">All rosters</Link></p>
+    <p className="team-back"><Link to="/">All rosters</Link>
+      {memberships.some(m => m.kind === 'player') && <> · <Link to={graphPath('player', personId)}>Explore in graph</Link></>}
+    </p>
     {error && <p className="error" role="alert">{error}</p>}
     {!shown && !error && <p className="loading">Loading player</p>}
     {shown && <>

@@ -600,7 +600,7 @@ h2.section { font-family: var(--font-mono); font-size: var(--fs-label); letter-s
    Main actions are ruby pills; picked tiles keep softer rounded corners. */
 .primary { --glass: var(--ruby); --glass-ink: #ffffff; --glass-shadow: rgba(0, 0, 0, 0.4); }
 .secondary { --glass: #3a4157; --glass-ink: #ffffff; --glass-shadow: rgba(0, 0, 0, 0.45); }
-:is(.hud, .tab-update, .match[data-status='live'], .bingo-targets button[aria-pressed='true'], .bcell[data-state='hit'], .sheet[data-side='left'] .sheet-head, .primary:not(:disabled), .secondary:not(:disabled), .event-pick button[aria-pressed='true'], .analyst-team[data-selected='true'], .analyst-player[data-selected='true'], .outcome[data-selected='true'], .picker-modes button[aria-pressed='true'], .dashboard-update[data-ready='true'], .mini-leaderboard li:first-child, .mini-own, .leaderboard-entry:first-child, .leaderboard-entry[data-self='true'], .leaderboard-own, .leaderboard-empty, .verdict li[data-ok='true'], .guide-bingo span[data-hit='true'], .swipe-dots button[aria-current='true'] i),
+:is(.hud, .network-story[aria-pressed='true'], .tab-update, .match[data-status='live'], .bingo-targets button[aria-pressed='true'], .bcell[data-state='hit'], .sheet[data-side='left'] .sheet-head, .primary:not(:disabled), .secondary:not(:disabled), .event-pick button[aria-pressed='true'], .analyst-team[data-selected='true'], .analyst-player[data-selected='true'], .outcome[data-selected='true'], .picker-modes button[aria-pressed='true'], .dashboard-update[data-ready='true'], .mini-leaderboard li:first-child, .mini-own, .leaderboard-entry:first-child, .leaderboard-entry[data-self='true'], .leaderboard-own, .leaderboard-empty, .verdict li[data-ok='true'], .guide-bingo span[data-hit='true'], .swipe-dots button[aria-current='true'] i),
 :is(.analyst-team[data-selected='true'], .analyst-player[data-selected='true'], .outcome[data-selected='true']):hover {
   position: relative;
   isolation: isolate;
@@ -613,7 +613,7 @@ h2.section { font-family: var(--font-mono); font-size: var(--fs-label); letter-s
     linear-gradient(180deg, color-mix(in srgb, var(--glass) 78%, black), var(--glass) 52%, color-mix(in srgb, var(--glass) 92%, white));
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 -1px 1px rgba(255, 255, 255, 0.14), 0 2px 6px rgba(0, 0, 0, 0.45);
 }
-:is(.hud, .tab-update, .match[data-status='live'], .bingo-targets button[aria-pressed='true'], .bcell[data-state='hit'], .sheet[data-side='left'] .sheet-head, .primary:not(:disabled), .secondary:not(:disabled), .event-pick button[aria-pressed='true'], .analyst-team[data-selected='true'], .analyst-player[data-selected='true'], .outcome[data-selected='true'], .picker-modes button[aria-pressed='true'], .dashboard-update[data-ready='true'], .mini-leaderboard li:first-child, .mini-own, .leaderboard-entry:first-child, .leaderboard-entry[data-self='true'], .leaderboard-own, .leaderboard-empty, .verdict li[data-ok='true'], .guide-bingo span[data-hit='true'], .swipe-dots button[aria-current='true'] i)::before {
+:is(.hud, .network-story[aria-pressed='true'], .tab-update, .match[data-status='live'], .bingo-targets button[aria-pressed='true'], .bcell[data-state='hit'], .sheet[data-side='left'] .sheet-head, .primary:not(:disabled), .secondary:not(:disabled), .event-pick button[aria-pressed='true'], .analyst-team[data-selected='true'], .analyst-player[data-selected='true'], .outcome[data-selected='true'], .picker-modes button[aria-pressed='true'], .dashboard-update[data-ready='true'], .mini-leaderboard li:first-child, .mini-own, .leaderboard-entry:first-child, .leaderboard-entry[data-self='true'], .leaderboard-own, .leaderboard-empty, .verdict li[data-ok='true'], .guide-bingo span[data-hit='true'], .swipe-dots button[aria-current='true'] i)::before {
   content: '';
   position: absolute;
   z-index: -1;
@@ -1598,9 +1598,9 @@ a.team-handle { color: var(--ink); text-decoration: none; }
 .saved-shares li { display: flex; align-items: center; gap: 12px; color: var(--muted); }
 .saved-shares li[data-revoked='true'] { opacity: 0.6; }
 .saved-shares .ghost { min-height: 32px; margin-left: auto; }
-/* The public header has four sections: one row of four on a phone. */
-@media (max-width: 560px) {
-  .hud:not(.play-hud) .hud-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 740px) {
+  .hud.hud.hud:not(.play-hud) { grid-template-areas: "menu . right" "tabs tabs tabs"; }
+  .hud:not(.play-hud) .hud-tabs { justify-self: stretch; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .hud:not(.play-hud) .hud-tab { gap: 5px; padding: 0 4px; letter-spacing: 0.06em; }
 }
 @media (max-width: 400px) {

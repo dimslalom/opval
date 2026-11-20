@@ -8,6 +8,7 @@ import RosterGraph from '../components/RosterGraph';
 import PersonPhoto from '../components/PersonPhoto';
 import { rosterDay as day } from '../lib/time';
 import { DAY, endOf, isoDay, isoOf, title, useRoster, validIso, windowText } from '../lib/roster';
+import { graphPath } from '../lib/rosterNetwork';
 import { assignSeats, lineupEras } from '../lib/seats';
 import { dismiss, isDismissed, lastVisit, markVisit, setSuggestionsOff, suggestionsOff } from '../lib/visits';
 
@@ -233,6 +234,7 @@ export default function Team() {
 
       {graph?.teamId === Number(teamId) && <section className="roster-block" aria-label="Connections">
         <h2 className="sum"><span>Where this team's people also played</span></h2>
+        <Link className="secondary" to={graphPath('team', teamId)}>Explore in graph</Link>
         <RosterGraph teamId={Number(teamId)} links={graph.links} />
       </section>}
 

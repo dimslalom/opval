@@ -126,6 +126,33 @@ export async function handleRosterV2(db, url) {
     return reply({ generatedAt: now(), sources: await sources(db), teams });
   }
 
+  if (path === '/api/roster/v2/graph') {
+    // One row per observed player stint. Keep separate intervals for players who rejoined a team.
+    const [sourceList, { results }] = await Promise.all([
+      sources(db),
+      db.prepare(`WITH latest AS (SELECT source_id, MAX(observed_at) AS observed_at FROM roster_reads GROUP BY source_id)
+        SELECT m.id,m.person_id AS personId,p.handle,m.team_id AS teamId,t.name,t.tag,t.league,
+          m.source_id AS sourceId,m.start_before AS firstSeenAt,m.last_seen_at AS lastSeenAt,
+          COALESCE(m.end_before IS NULL AND m.last_seen_at >= l.observed_at, 0) AS latest,
+          r.archive_url AS archiveUrl
+        FROM roster_memberships m
+        JOIN roster_people p ON p.id=m.person_id JOIN roster_teams t ON t.id=m.team_id
+        JOIN roster_sources s ON s.id=m.source_id AND s.enabled=1
+        JOIN roster_import_runs r ON r.id=m.first_run_id
+        LEFT JOIN latest l ON l.source_id=m.source_id
+        WHERE m.kind='player'
+        ORDER BY m.id`).all(),
+    ]);
+    const players = new Map();
+    const teams = new Map();
+    const stints = results.map(({ personId, handle, teamId, name, tag, league, latest, ...stint }) => {
+      players.set(personId, { id: personId, handle });
+      teams.set(teamId, { id: teamId, name, tag, league });
+      return { personId, teamId, latest: Boolean(latest), ...stint };
+    });
+    return reply({ generatedAt: now(), sources: sourceList, players: [...players.values()], teams: [...teams.values()], stints });
+  }
+
   // Connections: everyone ever listed on this team, and every tracked team those people have been on,
   // one row per person, team and kind with the span the reads listed them.
   if ((match = path.match(/^\/api\/roster\/v2\/teams\/(\d+)\/graph$/))) {
